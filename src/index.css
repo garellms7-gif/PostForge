@@ -1248,6 +1248,132 @@ body {
   flex-shrink: 0;
 }
 
+/* ===== A/B Test ===== */
+.ab-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.ab-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.ab-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.ab-label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.ab-label-a {
+  background: rgba(99, 102, 241, 0.15);
+  color: var(--accent);
+}
+
+.ab-label-b {
+  background: rgba(168, 85, 247, 0.15);
+  color: #a855f7;
+}
+
+.ab-community {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.ab-vote-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ab-tally {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ab-tally-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ab-tally-label {
+  font-size: 13px;
+  color: var(--muted);
+  width: 100px;
+  flex-shrink: 0;
+}
+
+.ab-tally-bar-wrap {
+  flex: 1;
+  height: 8px;
+  background: var(--bg);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.ab-tally-bar {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s;
+  min-width: 4px;
+}
+
+.ab-bar-a {
+  background: var(--accent);
+}
+
+.ab-bar-b {
+  background: #a855f7;
+}
+
+.ab-tally-count {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  width: 28px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.ab-insight {
+  margin-top: 14px;
+  padding: 10px 14px;
+  background: rgba(99, 102, 241, 0.06);
+  border: 1px solid rgba(99, 102, 241, 0.15);
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  line-height: 1.5;
+}
+
+.ab-insight svg {
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
 /* ===== Dashboard ===== */
 .dash-stats-grid {
   display: grid;
