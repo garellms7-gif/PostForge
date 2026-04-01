@@ -21,6 +21,15 @@ const CREDENTIAL_FIELDS = {
   ],
 };
 
+const BLOCK_KEYS = [
+  { key: 'voiceSamples', label: 'Voice/Tone Samples' },
+  { key: 'updateLog', label: 'Update Log' },
+  { key: 'roadmap', label: 'Roadmap Teaser' },
+  { key: 'offerCta', label: 'Offer / CTA' },
+  { key: 'personalStory', label: 'Personal Story' },
+  { key: 'socialProof', label: 'Social Proof' },
+];
+
 export default function Communities() {
   const [communities, setCommunities] = useState([]);
   const [name, setName] = useState('');
@@ -46,6 +55,7 @@ export default function Communities() {
       credentials: {},
       autoPost: false,
       preferredTime: '09:00',
+      blockOverrides: {},
     }]);
     setName('');
     setPlatform('Discord');
@@ -64,6 +74,24 @@ export default function Communities() {
     save(communities.map(c => {
       if (c.id !== id) return c;
       return { ...c, credentials: { ...c.credentials, [key]: value } };
+    }));
+  };
+
+  const toggleBlockOverride = (communityId, blockKey) => {
+    save(communities.map(c => {
+      if (c.id !== communityId) return c;
+      const overrides = { ...c.blockOverrides };
+      if (overrides[blockKey] === undefined) {
+        // First click: explicitly disable (override to off)
+        overrides[blockKey] = false;
+      } else if (overrides[blockKey] === false) {
+        // Second click: explicitly enable (override to on)
+        overrides[blockKey] = true;
+      } else {
+        // Third click: remove override (use global default)
+        delete overrides[blockKey];
+      }
+      return { ...c, blockOverrides: overrides };
     }));
   };
 
@@ -110,6 +138,7 @@ export default function Communities() {
             {communities.map(c => {
               const isExpanded = expandedId === c.id;
               const fields = credentialFields[c.platform] || [];
+              const hasSettings = fields.length > 0 || true; // always show for block overrides
               return (
                 <div key={c.id} className="community-card">
                   <div className="community-item" style={{ borderRadius: isExpanded ? '8px 8px 0 0' : undefined }}>
@@ -126,15 +155,13 @@ export default function Communities() {
                       </div>
                     </div>
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                      {(fields.length > 0) && (
-                        <button
-                          className="btn btn-secondary btn-sm"
-                          onClick={() => setExpandedId(isExpanded ? null : c.id)}
-                        >
-                          {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                          Settings
-                        </button>
-                      )}
+                      <button
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => setExpandedId(isExpanded ? null : c.id)}
+                      >
+                        {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                        Settings
+                      </button>
                       <button className="btn btn-danger btn-sm" onClick={() => handleDelete(c.id)}>
                         <Trash2 size={14} />
                       </button>
@@ -143,27 +170,58 @@ export default function Communities() {
 
                   {isExpanded && (
                     <div className="community-settings">
-                      <div className="form-grid">
-                        {fields.map(f => (
-                          <div className="form-group" key={f.key}>
-                            <label className="form-label">{f.label}</label>
+                      {fields.length > 0 && (
+                        <div className="form-grid" style={{ marginBottom: 20 }}>
+                          {fields.map(f => (
+                            <div className="form-group" key={f.key}>
+                              <label className="form-label">{f.label}</label>
+                              <input
+                                className="form-input"
+                                type={f.type || 'text'}
+                                placeholder={f.placeholder}
+                                value={c.credentials?.[f.key] || ''}
+                                onChange={e => updateCredential(c.id, f.key, e.target.value)}
+                              />
+                            </div>
+                          ))}
+                          <div className="form-group">
+                            <label className="form-label">Preferred Post Time</label>
                             <input
                               className="form-input"
-                              type={f.type || 'text'}
-                              placeholder={f.placeholder}
-                              value={c.credentials?.[f.key] || ''}
-                              onChange={e => updateCredential(c.id, f.key, e.target.value)}
+                              type="time"
+                              value={c.preferredTime || '09:00'}
+                              onChange={e => updateCommunity(c.id, { preferredTime: e.target.value })}
                             />
                           </div>
-                        ))}
-                        <div className="form-group">
-                          <label className="form-label">Preferred Post Time</label>
-                          <input
-                            className="form-input"
-                            type="time"
-                            value={c.preferredTime || '09:00'}
-                            onChange={e => updateCommunity(c.id, { preferredTime: e.target.value })}
-                          />
+                        </div>
+                      )}
+
+                      {/* Block Overrides */}
+                      <div className="block-overrides-section">
+                        <div className="form-label" style={{ marginBottom: 10, fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>
+                          Block Overrides
+                        </div>
+                        <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 12 }}>
+                          Click to cycle: Global default → Off → On → Global default
+                        </p>
+                        <div className="block-override-grid">
+                          {BLOCK_KEYS.map(b => {
+                            const override = c.blockOverrides?.[b.key];
+                            let stateLabel = 'Global';
+                            let stateClass = 'override-global';
+                            if (override === false) { stateLabel = 'Off'; stateClass = 'override-off'; }
+                            if (override === true) { stateLabel = 'On'; stateClass = 'override-on'; }
+                            return (
+                              <button
+                                key={b.key}
+                                className={`block-override-chip ${stateClass}`}
+                                onClick={() => toggleBlockOverride(c.id, b.key)}
+                              >
+                                <span className="block-override-name">{b.label}</span>
+                                <span className="block-override-state">{stateLabel}</span>
+                              </button>
+                            );
+                          })}
                         </div>
                       </div>
                     </div>

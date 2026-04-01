@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Send, Zap, Clock, CheckSquare, Brain, Check, X, Trash2 } from 'lucide-react';
-import { generatePost, TONES, POST_TYPES } from '../lib/generatePost';
+import { generatePost, resolveActiveBlocks, TONES, POST_TYPES } from '../lib/generatePost';
 import { postToPlatform } from '../lib/posting';
 
 const MODES = [
@@ -19,6 +19,11 @@ function getEnabledCommunities() {
 function getProduct() {
   const data = localStorage.getItem('postforge_product');
   return data ? JSON.parse(data) : {};
+}
+
+function getBlocks() {
+  const data = localStorage.getItem('postforge_blocks');
+  return data ? JSON.parse(data) : null;
 }
 
 function getPostLog() {
@@ -118,10 +123,12 @@ export default function Automation() {
     const communities = getEnabledCommunities();
     if (communities.length === 0) return;
     const product = getProduct();
+    const blocks = getBlocks();
     setSending(true);
 
     for (const community of communities) {
-      const content = generatePost(product, community, tone, postType);
+      const activeFlags = blocks ? resolveActiveBlocks(blocks, community) : {};
+      const content = generatePost(product, community, tone, postType, blocks, activeFlags);
       let status = 'success';
       let error = '';
       try {
@@ -150,16 +157,20 @@ export default function Automation() {
     const communities = getEnabledCommunities();
     if (communities.length === 0) return;
     const product = getProduct();
+    const blocks = getBlocks();
 
-    const newItems = communities.map(community => ({
+    const newItems = communities.map(community => {
+      const activeFlags = blocks ? resolveActiveBlocks(blocks, community) : {};
+      return {
       id: Date.now() + Math.random(),
       community: community.name,
       communityId: community.id,
       platform: community.platform,
-      content: generatePost(product, community, tone, postType),
+      content: generatePost(product, community, tone, postType, blocks, activeFlags),
       status: 'pending',
       date: new Date().toISOString(),
-    }));
+    };
+    });
 
     const updated = [...newItems, ...getQueue()];
     saveQueue(updated);

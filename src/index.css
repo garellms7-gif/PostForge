@@ -666,3 +666,158 @@ body {
   background: rgba(10, 102, 194, 0.15);
   color: #0a66c2;
 }
+
+/* Section title */
+.section-title {
+  font-size: 18px;
+  font-weight: 700;
+  margin-top: 32px;
+  margin-bottom: 8px;
+}
+
+/* Content Blocks */
+.content-block {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+
+.content-block-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  cursor: default;
+}
+
+.content-block-title {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.content-block-hint {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.content-block-body {
+  padding: 0 20px 20px;
+}
+
+/* Block list items (update log, roadmap, social proof) */
+.block-list-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+
+.block-list-date {
+  font-size: 12px;
+  color: var(--muted);
+  margin-right: 8px;
+}
+
+/* Roadmap status badges */
+.roadmap-status {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.roadmap-status.planned {
+  background: rgba(99, 102, 241, 0.15);
+  color: var(--accent);
+}
+
+.roadmap-status.in-progress {
+  background: rgba(34, 197, 94, 0.15);
+  color: var(--success);
+}
+
+/* Block Override chips in Communities */
+.block-override-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.block-override-chip {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+
+.block-override-chip:hover {
+  border-color: var(--muted);
+}
+
+.block-override-name {
+  font-size: 12px;
+  color: var(--text);
+}
+
+.block-override-state {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 3px;
+}
+
+.override-global .block-override-state {
+  background: rgba(113, 113, 122, 0.15);
+  color: var(--muted);
+}
+
+.override-off .block-override-state {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--danger);
+}
+
+.override-on .block-override-state {
+  background: rgba(34, 197, 94, 0.15);
+  color: var(--success);
+}
+
+.override-off {
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.override-on {
+  border-color: rgba(34, 197, 94, 0.3);
+}
+
+/* Active blocks bar in Generator */
+.active-blocks-bar {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.active-block-tag {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 12px;
+  background: rgba(99, 102, 241, 0.12);
+  color: var(--accent);
+  border: 1px solid rgba(99, 102, 241, 0.25);
+}

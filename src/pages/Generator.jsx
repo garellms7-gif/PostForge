@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Sparkles, Copy, Save, RefreshCw } from 'lucide-react';
-import { TONES, POST_TYPES, generatePost } from '../lib/generatePost';
+import { TONES, POST_TYPES, generatePost, resolveActiveBlocks } from '../lib/generatePost';
 
 export default function Generator() {
   const [communities, setCommunities] = useState([]);
   const [product, setProduct] = useState({});
+  const [blocks, setBlocks] = useState(null);
   const [selectedCommunity, setSelectedCommunity] = useState('');
   const [tone, setTone] = useState('Casual');
   const [postType, setPostType] = useState('Launch Announcement');
@@ -17,14 +18,17 @@ export default function Generator() {
     if (cData) setCommunities(JSON.parse(cData));
     const pData = localStorage.getItem('postforge_product');
     if (pData) setProduct(JSON.parse(pData));
+    const bData = localStorage.getItem('postforge_blocks');
+    if (bData) setBlocks(JSON.parse(bData));
   }, []);
 
   const handleGenerate = () => {
     const community = communities.find(c => String(c.id) === String(selectedCommunity));
+    const activeFlags = blocks ? resolveActiveBlocks(blocks, community) : {};
     setGenerating(true);
     setOutput('');
     setTimeout(() => {
-      const post = generatePost(product, community, tone, postType);
+      const post = generatePost(product, community, tone, postType, blocks, activeFlags);
       setOutput(post);
       setGenerating(false);
     }, 800);
@@ -50,6 +54,11 @@ export default function Generator() {
     const history = JSON.parse(localStorage.getItem('postforge_history') || '[]');
     localStorage.setItem('postforge_history', JSON.stringify([entry, ...history]));
   };
+
+  // Compute which blocks are active for the selected community to display
+  const selectedComm = communities.find(c => String(c.id) === String(selectedCommunity));
+  const activeFlags = blocks ? resolveActiveBlocks(blocks, selectedComm) : {};
+  const activeBlockNames = Object.entries(activeFlags).filter(([, v]) => v).map(([k]) => k);
 
   return (
     <div>
@@ -100,6 +109,25 @@ export default function Generator() {
             ))}
           </div>
         </div>
+
+        {activeBlockNames.length > 0 && (
+          <div style={{ marginTop: 16 }}>
+            <label className="form-label" style={{ marginBottom: 6, display: 'block' }}>Active Content Blocks</label>
+            <div className="active-blocks-bar">
+              {activeBlockNames.map(k => {
+                const labels = {
+                  voiceSamples: 'Voice/Tone',
+                  updateLog: 'Update Log',
+                  roadmap: 'Roadmap',
+                  offerCta: 'CTA',
+                  personalStory: 'Story',
+                  socialProof: 'Social Proof',
+                };
+                return <span key={k} className="active-block-tag">{labels[k] || k}</span>;
+              })}
+            </div>
+          </div>
+        )}
 
         <div style={{ marginTop: 20 }}>
           <button className="btn btn-primary" onClick={handleGenerate} disabled={generating}>

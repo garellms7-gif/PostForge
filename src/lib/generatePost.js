@@ -1,7 +1,116 @@
 const TONES = ['Professional', 'Casual', 'Hype', 'Story-driven', 'Educational', 'Funny'];
 const POST_TYPES = ['Launch Announcement', 'Feature Update', 'Ask for Feedback', 'Show & Tell', 'Milestone', 'Tips & Value'];
 
-function generatePost(product, community, tone, postType) {
+const BLOCK_KEYS = ['voiceSamples', 'updateLog', 'roadmap', 'offerCta', 'personalStory', 'socialProof'];
+
+/**
+ * Resolve which blocks are active for a given community.
+ * Uses global block settings, then applies per-community overrides.
+ */
+function resolveActiveBlocks(blocks, community) {
+  const active = {};
+  const overrides = community?.blockOverrides || {};
+  for (const key of BLOCK_KEYS) {
+    const globalEnabled = blocks?.[key]?.enabled || false;
+    if (overrides[key] !== undefined) {
+      active[key] = overrides[key];
+    } else {
+      active[key] = globalEnabled;
+    }
+  }
+  return active;
+}
+
+/**
+ * Build content-block enrichment sections to weave into the generated post.
+ */
+function buildBlockSections(blocks, activeFlags, tone) {
+  const sections = [];
+
+  // Voice/Tone Samples — influence style, not appended as content
+  // (handled by returning style hint separately)
+
+  // Update Log
+  if (activeFlags.updateLog && blocks.updateLog?.entries?.length) {
+    const entries = blocks.updateLog.entries.slice(0, 3);
+    const items = entries.map(e => `• ${e.date}: ${e.change}`).join('\n');
+    if (tone === 'Casual' || tone === 'Hype') {
+      sections.push(`Recent updates:\n${items}`);
+    } else {
+      sections.push(`What's new:\n${items}`);
+    }
+  }
+
+  // Roadmap Teaser
+  if (activeFlags.roadmap && blocks.roadmap?.items?.length) {
+    const items = blocks.roadmap.items.slice(0, 3);
+    const list = items.map(i => `• ${i.feature} (${i.status}${i.targetDate ? ` — ${i.targetDate}` : ''})`).join('\n');
+    if (tone === 'Hype') {
+      sections.push(`Coming soon (you're gonna love this):\n${list}`);
+    } else {
+      sections.push(`On the roadmap:\n${list}`);
+    }
+  }
+
+  // Personal Story
+  if (activeFlags.personalStory && blocks.personalStory?.story?.trim()) {
+    const story = blocks.personalStory.story.trim();
+    if (tone === 'Story-driven' || tone === 'Casual') {
+      sections.push(`A bit about me: ${story}`);
+    } else if (tone === 'Funny') {
+      sections.push(`The origin story (grab popcorn): ${story}`);
+    } else {
+      sections.push(`About the maker: ${story}`);
+    }
+  }
+
+  // Social Proof
+  if (activeFlags.socialProof && blocks.socialProof?.entries?.length) {
+    const items = blocks.socialProof.entries.map(e => `• ${e.text}`).join('\n');
+    if (tone === 'Hype') {
+      sections.push(`The numbers don't lie:\n${items}`);
+    } else {
+      sections.push(`Social proof:\n${items}`);
+    }
+  }
+
+  // Offer/CTA
+  if (activeFlags.offerCta && blocks.offerCta?.ctaText?.trim()) {
+    const cta = blocks.offerCta;
+    const label = cta.buttonLabel || cta.ctaText;
+    const url = cta.url || '';
+    if (tone === 'Hype') {
+      sections.push(`👉 ${cta.ctaText}${url ? ` — ${url}` : ''}`);
+    } else if (tone === 'Casual') {
+      sections.push(`${cta.ctaText}${url ? `\n${url}` : ''}`);
+    } else {
+      sections.push(`${label}: ${cta.ctaText}${url ? `\n${url}` : ''}`);
+    }
+  }
+
+  return sections;
+}
+
+/**
+ * Get voice style hints from sample posts.
+ */
+function getVoiceHint(blocks, activeFlags) {
+  if (!activeFlags.voiceSamples) return '';
+  const samples = (blocks.voiceSamples?.samples || []).filter(s => s.trim());
+  if (samples.length === 0) return '';
+  // Analyze samples for common patterns
+  const avgLen = Math.round(samples.reduce((sum, s) => sum + s.length, 0) / samples.length);
+  const usesEmoji = samples.some(s => /[\u{1F600}-\u{1F9FF}]/u.test(s));
+  const usesQuestions = samples.some(s => s.includes('?'));
+  const hints = [];
+  if (avgLen < 200) hints.push('Keep it concise');
+  if (avgLen > 500) hints.push('Use detailed, longer-form writing');
+  if (usesEmoji) hints.push('Include emoji naturally');
+  if (usesQuestions) hints.push('Use rhetorical questions');
+  return hints.length > 0 ? `[Style: ${hints.join(', ')}]` : '';
+}
+
+function generatePost(product, community, tone, postType, blocks, activeBlockFlags) {
   const name = product.name || 'My Product';
   const tagline = product.tagline || 'an awesome tool';
   const desc = product.description || 'a product built for makers';
@@ -11,6 +120,9 @@ function generatePost(product, community, tone, postType) {
 
   const priceStr = price ? ` Available for ${price}.` : '';
   const linkStr = link ? `\n\n${link}` : '';
+
+  // Resolve active blocks
+  const resolvedFlags = activeBlockFlags || (blocks ? resolveActiveBlocks(blocks, community) : {});
 
   const templates = {
     'Launch Announcement': {
@@ -63,7 +175,24 @@ function generatePost(product, community, tone, postType) {
     },
   };
 
-  return templates[postType]?.[tone] || `Check out ${name} — ${tagline}\n\n${desc}${priceStr}${linkStr}`;
+  let basePost = templates[postType]?.[tone] || `Check out ${name} — ${tagline}\n\n${desc}${priceStr}${linkStr}`;
+
+  // Append content block sections if blocks data is provided
+  if (blocks) {
+    const voiceHint = getVoiceHint(blocks, resolvedFlags);
+    const blockSections = buildBlockSections(blocks, resolvedFlags, tone);
+
+    if (blockSections.length > 0) {
+      basePost += '\n\n---\n\n' + blockSections.join('\n\n');
+    }
+
+    // Prepend voice hint if present (subtle style directive)
+    if (voiceHint) {
+      basePost = voiceHint + '\n\n' + basePost;
+    }
+  }
+
+  return basePost;
 }
 
-export { TONES, POST_TYPES, generatePost };
+export { TONES, POST_TYPES, BLOCK_KEYS, generatePost, resolveActiveBlocks };
