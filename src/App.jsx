@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Sparkles, Users, Package, Clock, Hammer, Send } from 'lucide-react';
+import { Sparkles, Users, Package, Clock, Hammer, Send, BarChart2 } from 'lucide-react';
+import Dashboard from './pages/Dashboard';
 import Generator from './pages/Generator';
 import Communities from './pages/Communities';
 import ProductHub from './pages/ProductHub';
@@ -7,6 +8,7 @@ import History from './pages/History';
 import Automation from './pages/Automation';
 
 const PAGE_COMPONENTS = {
+  dashboard: Dashboard,
   generator: Generator,
   communities: Communities,
   product: ProductHub,
@@ -15,6 +17,7 @@ const PAGE_COMPONENTS = {
 };
 
 const NAV_ITEMS = [
+  { id: 'dashboard', label: 'Dashboard', icon: BarChart2 },
   { id: 'generator', label: 'Generator', icon: Sparkles },
   { id: 'communities', label: 'Communities', icon: Users },
   { id: 'product', label: 'Product Hub', icon: Package },
@@ -23,7 +26,7 @@ const NAV_ITEMS = [
 ];
 
 export default function App() {
-  const [page, setPage] = useState('generator');
+  const [page, setPage] = useState('dashboard');
   const [navPayload, setNavPayload] = useState(null);
 
   const navigateTo = (pageId, payload) => {
