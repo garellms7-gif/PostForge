@@ -54,10 +54,10 @@ export default function Automation() {
   const [sending, setSending] = useState(false);
   const [postLog, setPostLog] = useState([]);
   const [queue, setQueue] = useState([]);
-  const [scheduleTime, setScheduleTime] = useState('09:00');
+  const [scheduleTime, setScheduleTime] = useState('10:00');
   const [scheduleActive, setScheduleActive] = useState(false);
   const [smartActive, setSmartActive] = useState(false);
-  const [smartTime, setSmartTime] = useState('09:00');
+  const [smartTime, setSmartTime] = useState('10:00');
   const scheduleRef = useRef(null);
   const smartRef = useRef(null);
 
@@ -67,13 +67,13 @@ export default function Automation() {
     const savedSchedule = localStorage.getItem('postforge_schedule');
     if (savedSchedule) {
       const s = JSON.parse(savedSchedule);
-      setScheduleTime(s.time || '09:00');
+      setScheduleTime(s.time || '10:00');
       setScheduleActive(s.active || false);
     }
     const savedSmart = localStorage.getItem('postforge_smart');
     if (savedSmart) {
       const s = JSON.parse(savedSmart);
-      setSmartTime(s.time || '09:00');
+      setSmartTime(s.time || '10:00');
       setSmartActive(s.active || false);
     }
   }, []);
@@ -499,6 +499,9 @@ export default function Automation() {
                   </span>
                   <span className={`platform-badge ${entry.platform.toLowerCase()}`}>{entry.platform}</span>
                   <span style={{ fontSize: 13 }}>{entry.community}</span>
+                  {entry.productName && (
+                    <span className="log-product-name">{entry.productName}</span>
+                  )}
                 </div>
                 <div className="log-item-right">
                   <span className="log-preview">{entry.content}</span>

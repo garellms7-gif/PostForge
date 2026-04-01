@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Save, Plus, Trash2, Package, Power } from 'lucide-react';
-import { generatePost, resolveActiveBlocks, TONES, POST_TYPES } from '../lib/generatePost';
+import { generatePost, resolveActiveBlocks } from '../lib/generatePost';
 import { postToPlatform } from '../lib/posting';
 
 const EMPTY_PRODUCT = {
@@ -37,14 +37,6 @@ function addLogEntry(entry) {
   savePostLog([entry, ...log].slice(0, 100));
 }
 
-function getQueue() {
-  return JSON.parse(localStorage.getItem('postforge_approval_queue') || '[]');
-}
-
-function saveQueue(queue) {
-  localStorage.setItem('postforge_approval_queue', JSON.stringify(queue));
-}
-
 export default function ProductHub() {
   const [tab, setTab] = useState('edit');
   const [product, setProduct] = useState(EMPTY_PRODUCT);
@@ -52,7 +44,7 @@ export default function ProductHub() {
   const [products, setProducts] = useState([]);
   const [saved, setSaved] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
-  const smartTimerRef = useRef(null);
+  const scheduleTimerRef = useRef(null);
 
   useEffect(() => {
     const data = localStorage.getItem('postforge_product');
@@ -62,81 +54,58 @@ export default function ProductHub() {
     setProducts(getProducts());
   }, []);
 
-  // Smart Mode timer for activated products
-  const runSmartModeForProduct = useCallback((prod) => {
+  // Scheduled Mode: generate and post immediately at the scheduled time
+  const runScheduledForProduct = useCallback(async (prod) => {
     const communities = getAllCommunities().filter(c => c.autoPost);
     if (communities.length === 0) return;
     const blocks = prod.blocks || null;
     const tone = 'Casual';
     const postType = 'Launch Announcement';
 
-    // Generate posts and add to approval queue
-    const newItems = communities.map(community => {
+    for (const community of communities) {
       const activeFlags = blocks ? resolveActiveBlocks(blocks, community) : {};
-      return {
-        id: Date.now() + Math.random(),
-        community: community.name,
-        communityId: community.id,
-        platform: community.platform,
-        productId: prod.id,
-        productName: prod.name,
-        content: generatePost(prod, community, tone, postType, blocks, activeFlags),
-        status: 'pending',
-        date: new Date().toISOString(),
-      };
-    });
-
-    const updated = [...newItems, ...getQueue()];
-    saveQueue(updated);
-
-    // Auto-send approved items for this product
-    const approved = updated.filter(q => q.status === 'approved' && q.productId === prod.id);
-    approved.forEach(async (item) => {
-      const community = getAllCommunities().find(c => c.id === item.communityId);
-      if (!community) return;
+      const content = generatePost(prod, community, tone, postType, blocks, activeFlags);
       let status = 'success';
       let error = '';
       try {
-        await postToPlatform(community, item.content);
+        await postToPlatform(community, content);
       } catch (err) {
         status = 'failed';
         error = err.message;
       }
       addLogEntry({
         id: Date.now() + Math.random(),
-        community: item.community,
-        platform: item.platform,
-        productName: prod.name,
-        content: item.content.slice(0, 120) + (item.content.length > 120 ? '...' : ''),
+        community: community.name,
+        platform: community.platform,
+        productName: prod.name || 'Unknown',
+        content: content.slice(0, 120) + (content.length > 120 ? '...' : ''),
         status,
         error,
         date: new Date().toISOString(),
       });
-      const q = getQueue().filter(q => q.id !== item.id);
-      saveQueue(q);
-    });
+    }
   }, []);
 
-  // Run Smart Mode timer for any activated product
+  // Timer for all activated products (independent schedules)
   useEffect(() => {
-    if (smartTimerRef.current) clearInterval(smartTimerRef.current);
+    if (scheduleTimerRef.current) clearInterval(scheduleTimerRef.current);
 
     const activatedProducts = products.filter(p => p.activated);
     if (activatedProducts.length === 0) return;
 
-    smartTimerRef.current = setInterval(() => {
+    scheduleTimerRef.current = setInterval(() => {
       const now = new Date();
       for (const prod of activatedProducts) {
-        const time = prod.smartTime || '09:00';
+        const time = prod.scheduleTime || '10:00';
         const [h, m] = time.split(':').map(Number);
         if (now.getHours() === h && now.getMinutes() === m && now.getSeconds() < 10) {
-          runSmartModeForProduct(prod);
+          runScheduledForProduct(prod);
         }
       }
     }, 5000);
 
-    return () => clearInterval(smartTimerRef.current);
-  }, [products, runSmartModeForProduct]);
+    return () => clearInterval(scheduleTimerRef.current);
+  }, [products, runScheduledForProduct]);
 
   const update = (field, value) => {
     setProduct(prev => ({ ...prev, [field]: value }));
@@ -145,7 +114,6 @@ export default function ProductHub() {
   const persistActive = (prod, id) => {
     localStorage.setItem('postforge_product', JSON.stringify(prod));
     if (id) localStorage.setItem('postforge_active_product_id', id);
-    // Also persist blocks from the product for Generator/Automation compatibility
     const prods = getProducts();
     const found = prods.find(p => p.id === id);
     if (found?.blocks) {
@@ -168,7 +136,7 @@ export default function ProductHub() {
 
   const handleSaveAsNew = () => {
     const id = String(Date.now());
-    const entry = { ...product, id, blocks: null, activated: false, smartTime: '09:00' };
+    const entry = { ...product, id, blocks: null, activated: false, scheduleTime: '10:00' };
     const updated = [...getProducts(), entry];
     saveProducts(updated);
     setProducts(updated);
@@ -208,37 +176,21 @@ export default function ProductHub() {
     }
   };
 
+  // Multiple products can be active simultaneously
   const handleToggleActivate = (id) => {
     const updated = getProducts().map(p => {
       if (p.id === id) {
         return { ...p, activated: !p.activated };
       }
-      // Deactivate all others — only one active at a time
-      return { ...p, activated: false };
+      return p;
     });
     saveProducts(updated);
     setProducts(updated);
-
-    // If we just activated this product, also load it as the active product
-    const activated = updated.find(p => p.id === id);
-    if (activated?.activated) {
-      setActiveProductId(id);
-      const loadedProduct = {
-        name: activated.name || '',
-        tagline: activated.tagline || '',
-        description: activated.description || '',
-        price: activated.price || '',
-        gumroadLink: activated.gumroadLink || '',
-        version: activated.version || '',
-      };
-      setProduct(loadedProduct);
-      persistActive(loadedProduct, id);
-    }
   };
 
-  const handleSmartTimeChange = (id, time) => {
+  const handleScheduleTimeChange = (id, time) => {
     const updated = getProducts().map(p =>
-      p.id === id ? { ...p, smartTime: time } : p
+      p.id === id ? { ...p, scheduleTime: time } : p
     );
     saveProducts(updated);
     setProducts(updated);
@@ -247,7 +199,7 @@ export default function ProductHub() {
   return (
     <div>
       <h1 className="page-title">Product Hub</h1>
-      <p className="page-subtitle">Manage your products and activate Smart Mode automation.</p>
+      <p className="page-subtitle">Manage your products and activate scheduled automation.</p>
 
       {/* Tabs */}
       <div className="tab-bar">
@@ -312,17 +264,17 @@ export default function ProductHub() {
           {products.length > 0 ? (
             <div className="product-grid">
               {products.map(p => {
-                const isActive = activeProductId === p.id;
+                const isLoaded = activeProductId === p.id;
                 const isActivated = p.activated || false;
                 return (
                   <div
                     key={p.id}
-                    className={`product-card ${isActive ? 'product-card-active' : ''}`}
+                    className={`product-card ${isLoaded ? 'product-card-active' : ''}`}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                       <div className="product-card-name">{p.name || 'Untitled Product'}</div>
                       {isActivated && (
-                        <span className="product-activated-badge">Smart Mode On</span>
+                        <span className="product-activated-badge">Active</span>
                       )}
                     </div>
                     {p.tagline && <div className="product-card-tagline">{p.tagline}</div>}
@@ -332,14 +284,14 @@ export default function ProductHub() {
                     </div>
 
                     {isActivated && (
-                      <div className="product-smart-time">
-                        <label className="form-label">Smart Mode Time</label>
+                      <div className="product-schedule-row">
+                        <span className="product-schedule-label">Posts daily at</span>
                         <input
                           className="form-input"
                           type="time"
-                          value={p.smartTime || '09:00'}
-                          onChange={e => handleSmartTimeChange(p.id, e.target.value)}
-                          style={{ padding: '6px 10px', fontSize: 13 }}
+                          value={p.scheduleTime || '10:00'}
+                          onChange={e => handleScheduleTimeChange(p.id, e.target.value)}
+                          style={{ padding: '6px 10px', fontSize: 13, width: 110 }}
                         />
                       </div>
                     )}

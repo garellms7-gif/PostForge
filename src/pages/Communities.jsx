@@ -67,7 +67,7 @@ export default function Communities() {
       platform,
       credentials: {},
       autoPost: false,
-      preferredTime: '09:00',
+      preferredTime: '10:00',
       blockSettings: { ...defaults },
     }]);
     setName('');
