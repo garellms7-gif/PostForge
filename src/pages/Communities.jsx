@@ -1,13 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Plus, Trash2, Users, ChevronDown, ChevronUp, Zap, HelpCircle, ExternalLink } from 'lucide-react';
+import { Plus, Trash2, Users, ChevronDown, ChevronUp, Zap, HelpCircle, ExternalLink, AlertTriangle } from 'lucide-react';
 import { getCommunityHealth, daysSinceLastPost } from '../lib/health';
-import { testDiscordWebhook } from '../lib/posting';
+import { testDiscordWebhook, testLinkedInToken } from '../lib/posting';
 import { UndoToast } from '../components/UxHelpers';
 
 const PLATFORMS = ['Discord', 'Reddit', 'LinkedIn', 'X', 'Facebook', 'Slack', 'Other'];
 
 const CREDENTIAL_FIELDS = {
-  LinkedIn: [{ key: 'accessToken', label: 'Access Token', placeholder: 'Your LinkedIn access token' }],
   Reddit: [
     { key: 'subreddit', label: 'Subreddit', placeholder: 'e.g. indiehackers' },
     { key: 'username', label: 'Username', placeholder: 'Reddit username' },
@@ -125,6 +124,108 @@ function DiscordSetup({ community, onUpdateCredential }) {
   );
 }
 
+function LinkedInSetup({ community, onUpdateCredential }) {
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState(null);
+  const [guideOpen, setGuideOpen] = useState(false);
+  const token = community.credentials?.accessToken || '';
+  const tokenExpiry = community.credentials?.tokenExpiry || '';
+
+  // Calculate days until expiry
+  const daysUntilExpiry = tokenExpiry
+    ? Math.ceil((new Date(tokenExpiry).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+    : null;
+  const expiryWarning = daysUntilExpiry !== null && daysUntilExpiry <= 7 && daysUntilExpiry > 0;
+  const expired = daysUntilExpiry !== null && daysUntilExpiry <= 0;
+
+  const handleTest = async () => {
+    if (!token.trim()) {
+      setTestResult({ ok: false, msg: 'Enter an access token first' });
+      return;
+    }
+    setTesting(true);
+    setTestResult(null);
+    try {
+      const result = await testLinkedInToken(token);
+      setTestResult({ ok: true, msg: `Connected as ${result.name}` });
+    } catch (err) {
+      setTestResult({ ok: false, msg: `Failed — ${err.message}` });
+    }
+    setTesting(false);
+  };
+
+  return (
+    <div className="linkedin-setup">
+      <div className="form-label" style={{ marginBottom: 10, fontSize: 14, fontWeight: 600, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 6 }}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="#0a66c2"><path d="M20.5 2h-17A1.5 1.5 0 002 3.5v17A1.5 1.5 0 003.5 22h17a1.5 1.5 0 001.5-1.5v-17A1.5 1.5 0 0020.5 2zM8 19H5v-9h3zM6.5 8.25A1.75 1.75 0 118.3 6.5a1.78 1.78 0 01-1.8 1.75zM19 19h-3v-4.74c0-1.42-.6-1.93-1.38-1.93A1.74 1.74 0 0013 14.19V19h-3v-9h2.9v1.3a3.11 3.11 0 012.7-1.4c1.55 0 3.36.86 3.36 3.66z"/></svg>
+        LinkedIn Setup
+      </div>
+
+      {(expiryWarning || expired) && (
+        <div className="linkedin-expiry-warning">
+          <AlertTriangle size={14} />
+          {expired
+            ? `Your LinkedIn token for "${community.name}" has expired — update it to keep posting.`
+            : `Your LinkedIn token for "${community.name}" expires in ${daysUntilExpiry} day${daysUntilExpiry !== 1 ? 's' : ''} — update it to keep posting.`
+          }
+        </div>
+      )}
+
+      <div className="form-group" style={{ marginBottom: 12 }}>
+        <label className="form-label">Access Token</label>
+        <input
+          className="form-input"
+          type="password"
+          placeholder="Your LinkedIn access token"
+          value={token}
+          onChange={e => onUpdateCredential(community.id, 'accessToken', e.target.value)}
+        />
+      </div>
+
+      <div className="form-group" style={{ marginBottom: 12, maxWidth: 220 }}>
+        <label className="form-label">Token expires on</label>
+        <input
+          className="form-input"
+          type="date"
+          value={tokenExpiry}
+          onChange={e => onUpdateCredential(community.id, 'tokenExpiry', e.target.value)}
+        />
+      </div>
+
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12 }}>
+        <button className="btn btn-primary btn-sm" onClick={handleTest} disabled={testing}>
+          {testing ? <span className="spinner" /> : <Zap size={14} />}
+          {testing ? 'Testing...' : 'Test Connection'}
+        </button>
+        {testResult && (
+          <span style={{ fontSize: 13, fontWeight: 500, color: testResult.ok ? 'var(--success)' : 'var(--danger)' }}>
+            {testResult.msg}
+          </span>
+        )}
+      </div>
+
+      <button className="discord-guide-toggle" onClick={() => setGuideOpen(!guideOpen)}>
+        <HelpCircle size={14} />
+        {guideOpen ? 'Hide setup guide' : 'How to get your token'}
+        {guideOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+      </button>
+
+      {guideOpen && (
+        <div className="linkedin-guide">
+          <ol>
+            <li>Go to <a href="https://developer.linkedin.com" target="_blank" rel="noopener noreferrer">developer.linkedin.com</a></li>
+            <li>Create an app (use <strong>PostForge</strong> as the name)</li>
+            <li>Under <strong>Products</strong>, request <strong>"Share on LinkedIn"</strong></li>
+            <li>Go to <strong>Auth</strong> tab, copy your Client ID and Client Secret</li>
+            <li>Use LinkedIn OAuth 2.0 to generate an access token with scope <code>w_member_social</code></li>
+            <li>Paste the token here — it lasts <strong>60 days</strong></li>
+          </ol>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Communities() {
   const [communities, setCommunities] = useState([]);
   const [name, setName] = useState('');
@@ -234,6 +335,7 @@ export default function Communities() {
               const isExpanded = expandedId === c.id;
               const fields = CREDENTIAL_FIELDS[c.platform] || [];
               const isDiscord = c.platform === 'Discord';
+              const isLinkedIn = c.platform === 'LinkedIn';
               return (
                 <div key={c.id} className="community-card">
                   <div className="community-item" style={{ borderRadius: isExpanded ? '8px 8px 0 0' : undefined }}>
@@ -280,8 +382,15 @@ export default function Communities() {
                         </div>
                       )}
 
-                      {/* Non-Discord credential fields */}
-                      {!isDiscord && fields.length > 0 && (
+                      {/* LinkedIn-specific setup */}
+                      {isLinkedIn && (
+                        <div style={{ marginBottom: 20 }}>
+                          <LinkedInSetup community={c} onUpdateCredential={updateCredential} />
+                        </div>
+                      )}
+
+                      {/* Other platform credential fields */}
+                      {!isDiscord && !isLinkedIn && fields.length > 0 && (
                         <div className="form-grid" style={{ marginBottom: 20 }}>
                           {fields.map(f => (
                             <div className="form-group" key={f.key}>

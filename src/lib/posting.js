@@ -36,17 +36,25 @@ export async function testDiscordWebhook(webhookUrl) {
 
 /**
  * Post to LinkedIn via Share API using an access token.
+ * Fetches profile ID first, then creates a UGC post.
  */
 export async function postToLinkedIn(token, content) {
+  if (!token) throw new Error('LinkedIn access token is required');
+
+  // Step 1: Get profile ID
   const profileRes = await fetch('https://api.linkedin.com/v2/userinfo', {
     headers: { Authorization: `Bearer ${token}` },
   });
+  if (profileRes.status === 401) {
+    throw new Error('Token expired — please update your LinkedIn token');
+  }
   if (!profileRes.ok) {
     throw new Error(`LinkedIn profile fetch failed (${profileRes.status})`);
   }
   const profile = await profileRes.json();
   const personUrn = `urn:li:person:${profile.sub}`;
 
+  // Step 2: Create UGC post
   const res = await fetch('https://api.linkedin.com/v2/ugcPosts', {
     method: 'POST',
     headers: {
@@ -68,11 +76,32 @@ export async function postToLinkedIn(token, content) {
       },
     }),
   });
+  if (res.status === 401) {
+    throw new Error('Token expired — please update your LinkedIn token');
+  }
   if (!res.ok) {
     const text = await res.text().catch(() => '');
     throw new Error(`LinkedIn post failed (${res.status}): ${text}`);
   }
   return { success: true, platform: 'LinkedIn' };
+}
+
+/**
+ * Test a LinkedIn access token by fetching the user profile.
+ */
+export async function testLinkedInToken(token) {
+  if (!token) throw new Error('No access token provided');
+  const res = await fetch('https://api.linkedin.com/v2/userinfo', {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (res.status === 401) {
+    throw new Error('Token expired or invalid');
+  }
+  if (!res.ok) {
+    throw new Error(`LinkedIn API error (${res.status})`);
+  }
+  const profile = await res.json();
+  return { success: true, name: profile.name || profile.email || 'Connected' };
 }
 
 /**
