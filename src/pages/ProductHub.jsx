@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Save, Plus, Trash2, Package, Power } from 'lucide-react';
 import { generatePost, resolveActiveBlocks } from '../lib/generatePost';
 import { postToPlatform } from '../lib/posting';
+import { UndoToast } from '../components/UxHelpers';
 
 const EMPTY_PRODUCT = {
   name: '',
@@ -43,7 +44,7 @@ export default function ProductHub() {
   const [activeProductId, setActiveProductId] = useState(null);
   const [products, setProducts] = useState([]);
   const [saved, setSaved] = useState(false);
-  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+  const [undoProduct, setUndoProduct] = useState(null);
   const scheduleTimerRef = useRef(null);
 
   useEffect(() => {
@@ -162,18 +163,23 @@ export default function ProductHub() {
   };
 
   const handleDeleteProduct = (id) => {
-    if (confirmDeleteId !== id) {
-      setConfirmDeleteId(id);
-      return;
-    }
+    const item = products.find(p => p.id === id);
     const updated = getProducts().filter(p => p.id !== id);
     saveProducts(updated);
     setProducts(updated);
-    setConfirmDeleteId(null);
     if (activeProductId === id) {
       setActiveProductId(null);
       localStorage.removeItem('postforge_active_product_id');
     }
+    setUndoProduct(item);
+  };
+
+  const handleUndoDeleteProduct = () => {
+    if (!undoProduct) return;
+    const updated = [...products, undoProduct];
+    saveProducts(updated);
+    setProducts(updated);
+    setUndoProduct(null);
   };
 
   // Multiple products can be active simultaneously
@@ -312,7 +318,6 @@ export default function ProductHub() {
                         onClick={() => handleDeleteProduct(p.id)}
                       >
                         <Trash2 size={14} />
-                        {confirmDeleteId === p.id ? 'Confirm?' : ''}
                       </button>
                     </div>
                   </div>
@@ -323,9 +328,19 @@ export default function ProductHub() {
             <div className="empty-state">
               <Package size={48} strokeWidth={1} style={{ opacity: 0.3, marginBottom: 12 }} />
               <p>No products saved yet.</p>
+              <p style={{ marginTop: 8, fontSize: 13 }}>Switch to the Edit Product tab, fill in your product details, and click "Save as New Product".</p>
+              <button className="btn btn-primary btn-sm" style={{ marginTop: 12 }} onClick={() => setTab('edit')}>Go to Edit Product</button>
             </div>
           )}
         </>
+      )}
+
+      {undoProduct && (
+        <UndoToast
+          key={undoProduct.id}
+          message={`"${undoProduct.name || 'Product'}" deleted`}
+          onUndo={handleUndoDeleteProduct}
+        />
       )}
     </div>
   );

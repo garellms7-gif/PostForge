@@ -61,7 +61,7 @@ function getLast14Days() {
   return days;
 }
 
-export default function Dashboard() {
+export default function Dashboard({ navigateTo }) {
   const [history, setHistory] = useState([]);
   const [postLog, setPostLog] = useState([]);
   const [communities, setCommunities] = useState([]);
@@ -203,7 +203,10 @@ export default function Dashboard() {
             ))}
           </div>
         ) : (
-          <p style={{ color: 'var(--muted)', fontSize: 14 }}>No posts yet. Generate and save posts to see your leaderboard.</p>
+          <div style={{ textAlign: 'center', padding: 16 }}>
+            <p style={{ color: 'var(--muted)', fontSize: 14 }}>No posts yet. Generate and save posts to see your leaderboard.</p>
+            {navigateTo && <button className="btn btn-primary btn-sm" style={{ marginTop: 10 }} onClick={() => navigateTo('generator')}>Go to Generator</button>}
+          </div>
         )}
       </div>
 

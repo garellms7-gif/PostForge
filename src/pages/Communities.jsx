@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Plus, Trash2, Users, ChevronDown, ChevronUp } from 'lucide-react';
 import { getCommunityHealth, daysSinceLastPost } from '../lib/health';
+import { UndoToast } from '../components/UxHelpers';
 
 const PLATFORMS = ['Discord', 'Reddit', 'LinkedIn', 'X', 'Facebook', 'Slack', 'Other'];
 
@@ -47,6 +48,7 @@ export default function Communities() {
   const [name, setName] = useState('');
   const [platform, setPlatform] = useState('Discord');
   const [expandedId, setExpandedId] = useState(null);
+  const [undoItem, setUndoItem] = useState(null);
 
   useEffect(() => {
     const data = localStorage.getItem('postforge_communities');
@@ -76,8 +78,17 @@ export default function Communities() {
   };
 
   const handleDelete = (id) => {
-    save(communities.filter(c => c.id !== id));
+    const item = communities.find(c => c.id === id);
+    const updated = communities.filter(c => c.id !== id);
+    save(updated);
     if (expandedId === id) setExpandedId(null);
+    setUndoItem(item);
+  };
+
+  const handleUndoDelete = () => {
+    if (!undoItem) return;
+    save([...communities, undoItem]);
+    setUndoItem(null);
   };
 
   const updateCommunity = (id, updates) => {
@@ -239,10 +250,19 @@ export default function Communities() {
         ) : (
           <div className="empty-state">
             <Users size={48} strokeWidth={1} style={{ opacity: 0.3, marginBottom: 12 }} />
-            <p>No communities added yet. Add one above to get started.</p>
+            <p>No communities added yet.</p>
+            <p style={{ marginTop: 8, fontSize: 13 }}>Use the form above to add your first community — Discord, Reddit, LinkedIn, or any platform.</p>
           </div>
         )}
       </div>
+
+      {undoItem && (
+        <UndoToast
+          key={undoItem.id}
+          message={`"${undoItem.name}" deleted`}
+          onUndo={handleUndoDelete}
+        />
+      )}
     </div>
   );
 }

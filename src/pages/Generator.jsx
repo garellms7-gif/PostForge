@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Sparkles, Copy, Save, RefreshCw, Star, AlertTriangle, FlaskConical } from 'lucide-react';
+import { Sparkles, Copy, Save, RefreshCw, Star, AlertTriangle, FlaskConical, Eye, EyeOff } from 'lucide-react';
 import { TONES, POST_TYPES, generatePost, resolveActiveBlocks } from '../lib/generatePost';
 import { getCommunityHealth, daysSinceLastPost, setLastPostDate } from '../lib/health';
+import { CharCounter, PlatformPreview } from '../components/UxHelpers';
 
 function getTopPosts() {
   return JSON.parse(localStorage.getItem('postforge_top_posts') || '[]');
@@ -9,9 +10,7 @@ function getTopPosts() {
 
 function getTopPostsForCommunity(communityName) {
   if (!communityName) return [];
-  return getTopPosts()
-    .filter(p => p.community === communityName)
-    .slice(0, 3);
+  return getTopPosts().filter(p => p.community === communityName).slice(0, 3);
 }
 
 function buildTopPostsSection(topPosts) {
@@ -32,17 +31,13 @@ function saveABResults(results) {
 function generateForCommunity(product, community, tone, postType, blocks) {
   const activeFlags = blocks ? resolveActiveBlocks(blocks, community) : {};
   let post = generatePost(product, community, tone, postType, blocks, activeFlags);
-  const communityName = community?.name || '';
-  const topPosts = getTopPostsForCommunity(communityName);
-  if (topPosts.length > 0) {
-    post += buildTopPostsSection(topPosts);
-  }
+  const topPosts = getTopPostsForCommunity(community?.name || '');
+  if (topPosts.length > 0) post += buildTopPostsSection(topPosts);
   return post;
 }
 
 function computeInsights(results) {
   if (results.length < 3) return null;
-  // Count wins by tone
   const toneWins = {};
   for (const r of results) {
     const winnerTone = r.winner === 'A' ? r.toneA : r.toneB;
@@ -51,11 +46,9 @@ function computeInsights(results) {
   const sorted = Object.entries(toneWins).sort((a, b) => b[1] - a[1]);
   if (sorted.length < 2) return null;
   const [topTone, topCount] = sorted[0];
-  const total = results.length;
-  const pct = Math.round((topCount / total) * 100);
+  const pct = Math.round((topCount / results.length) * 100);
   if (pct <= 55) return null;
-  const [secondTone] = sorted[1];
-  return `${topTone} tone posts outperform ${secondTone} tone posts ${pct}% of the time for your products`;
+  return `${topTone} tone posts outperform ${sorted[1][0]} tone posts ${pct}% of the time for your products`;
 }
 
 export default function Generator({ navPayload }) {
@@ -68,6 +61,8 @@ export default function Generator({ navPayload }) {
   const [output, setOutput] = useState('');
   const [generating, setGenerating] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [savedMsg, setSavedMsg] = useState('');
+  const [previewMode, setPreviewMode] = useState(false);
 
   // A/B Test state
   const [abMode, setAbMode] = useState(false);
@@ -77,6 +72,8 @@ export default function Generator({ navPayload }) {
   const [outputB, setOutputB] = useState('');
   const [copiedA, setCopiedA] = useState(false);
   const [copiedB, setCopiedB] = useState(false);
+  const [previewA, setPreviewA] = useState(false);
+  const [previewB, setPreviewB] = useState(false);
   const [voted, setVoted] = useState(null);
   const [abResults, setAbResults] = useState([]);
 
@@ -94,31 +91,26 @@ export default function Generator({ navPayload }) {
       const match = loadedCommunities.find(c => c.name === navPayload.communityName);
       if (match) setSelectedCommunity(String(match.id));
     }
-    if (navPayload?.checkin) {
-      setPostType('Tips & Value');
-      setTone('Casual');
-    }
+    if (navPayload?.checkin) { setPostType('Tips & Value'); setTone('Casual'); }
   }, [navPayload]);
 
-  // Standard generate
   const handleGenerate = () => {
     const community = communities.find(c => String(c.id) === String(selectedCommunity));
     setGenerating(true);
     setOutput('');
+    setPreviewMode(false);
     setTimeout(() => {
       setOutput(generateForCommunity(product, community, tone, postType, blocks));
       setGenerating(false);
     }, 800);
   };
 
-  // A/B generate
   const handleGenerateAB = () => {
     const commA = communities.find(c => String(c.id) === String(communityA));
     const commB = communities.find(c => String(c.id) === String(communityB));
     setGenerating(true);
-    setOutputA('');
-    setOutputB('');
-    setVoted(null);
+    setOutputA(''); setOutputB(''); setVoted(null);
+    setPreviewA(false); setPreviewB(false);
     setTimeout(() => {
       setOutputA(generateForCommunity(product, commA, tone, postType, blocks));
       setOutputB(generateForCommunity(product, commB, tone, postType, blocks));
@@ -126,11 +118,7 @@ export default function Generator({ navPayload }) {
     }, 800);
   };
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(output);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
+  const handleCopy = () => { navigator.clipboard.writeText(output); setCopied(true); setTimeout(() => setCopied(false), 2000); };
 
   const handleCopyAB = (text, side) => {
     navigator.clipboard.writeText(text);
@@ -140,76 +128,41 @@ export default function Generator({ navPayload }) {
 
   const handleSaveToHistory = () => {
     const community = communities.find(c => String(c.id) === String(selectedCommunity));
-    const entry = {
-      id: Date.now(),
-      content: output,
-      tone,
-      postType,
-      community: community?.name || 'General',
-      platform: community?.platform || '',
-      date: new Date().toISOString(),
-    };
+    const entry = { id: Date.now(), content: output, tone, postType, community: community?.name || 'General', platform: community?.platform || '', date: new Date().toISOString() };
     const history = JSON.parse(localStorage.getItem('postforge_history') || '[]');
     localStorage.setItem('postforge_history', JSON.stringify([entry, ...history]));
     const commName = community?.name;
-    if (commName) {
-      setLastPostDate(commName);
-      const cData = localStorage.getItem('postforge_communities');
-      if (cData) setCommunities(JSON.parse(cData));
-    }
+    if (commName) { setLastPostDate(commName); const cData = localStorage.getItem('postforge_communities'); if (cData) setCommunities(JSON.parse(cData)); }
+    setSavedMsg('Saved to History!');
+    setTimeout(() => setSavedMsg(''), 2000);
   };
 
   const handleSaveAB = (content, side) => {
     const comm = communities.find(c => String(c.id) === String(side === 'A' ? communityA : communityB));
-    const entry = {
-      id: Date.now() + (side === 'B' ? 1 : 0),
-      content,
-      tone,
-      postType,
-      community: comm?.name || 'General',
-      platform: comm?.platform || '',
-      date: new Date().toISOString(),
-    };
+    const entry = { id: Date.now() + (side === 'B' ? 1 : 0), content, tone, postType, community: comm?.name || 'General', platform: comm?.platform || '', date: new Date().toISOString() };
     const history = JSON.parse(localStorage.getItem('postforge_history') || '[]');
     localStorage.setItem('postforge_history', JSON.stringify([entry, ...history]));
     if (comm?.name) setLastPostDate(comm.name);
+    return true;
   };
 
   const handleVote = (winner) => {
     const commA = communities.find(c => String(c.id) === String(communityA));
     const commB = communities.find(c => String(c.id) === String(communityB));
-    const result = {
-      id: Date.now(),
-      winner,
-      communityA: commA?.name || 'A',
-      communityB: commB?.name || 'B',
-      toneA: tone,
-      toneB: tone,
-      postType,
-      date: new Date().toISOString(),
-    };
+    const result = { id: Date.now(), winner, communityA: commA?.name || 'A', communityB: commB?.name || 'B', toneA: tone, toneB: tone, postType, date: new Date().toISOString() };
     const updated = [result, ...abResults].slice(0, 200);
-    saveABResults(updated);
-    setAbResults(updated);
-    setVoted(winner);
+    saveABResults(updated); setAbResults(updated); setVoted(winner);
   };
 
-  // Compute stats
   const selectedComm = communities.find(c => String(c.id) === String(selectedCommunity));
   const activeFlags = blocks ? resolveActiveBlocks(blocks, selectedComm) : {};
   const activeBlockNames = Object.entries(activeFlags).filter(([, v]) => v).map(([k]) => k);
   const communityName = selectedComm?.name || '';
   const topPostCount = getTopPostsForCommunity(communityName).length;
-
-  const unhealthyCommunities = communities
-    .map(c => ({ ...c, health: getCommunityHealth(c.name), days: daysSinceLastPost(c.name) }))
-    .filter(c => c.health === 'fading' || c.health === 'silent');
-
-  // A/B tally
+  const unhealthyCommunities = communities.map(c => ({ ...c, health: getCommunityHealth(c.name), days: daysSinceLastPost(c.name) })).filter(c => c.health === 'fading' || c.health === 'silent');
   const aWins = abResults.filter(r => r.winner === 'A').length;
   const bWins = abResults.filter(r => r.winner === 'B').length;
   const insight = computeInsights(abResults);
-
   const commAObj = communities.find(c => String(c.id) === String(communityA));
   const commBObj = communities.find(c => String(c.id) === String(communityB));
 
@@ -315,11 +268,8 @@ export default function Generator({ navPayload }) {
               {generating ? 'Generating...' : 'Generate A/B Test'}
             </button>
           )}
-
           <div className="toggle-wrapper" onClick={() => { setAbMode(!abMode); setOutputA(''); setOutputB(''); setOutput(''); setVoted(null); }} style={{ marginLeft: 4 }}>
-            <div className={`toggle ${abMode ? 'toggle-on' : ''}`}>
-              <div className="toggle-knob" />
-            </div>
+            <div className={`toggle ${abMode ? 'toggle-on' : ''}`}><div className="toggle-knob" /></div>
             <span className="toggle-label">A/B Test</span>
           </div>
         </div>
@@ -328,8 +278,19 @@ export default function Generator({ navPayload }) {
       {/* Standard output */}
       {!abMode && output && (
         <div className="card">
-          <div className="card-title">Generated Post</div>
-          <div className="generated-output">{output}</div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <div className="card-title" style={{ marginBottom: 0 }}>Generated Post</div>
+            <button className="btn btn-secondary btn-sm" onClick={() => setPreviewMode(!previewMode)}>
+              {previewMode ? <EyeOff size={14} /> : <Eye size={14} />}
+              {previewMode ? 'Raw' : 'Preview'}
+            </button>
+          </div>
+          {previewMode ? (
+            <PlatformPreview content={output} platform={selectedComm?.platform || ''} visible />
+          ) : (
+            <div className="generated-output">{output}</div>
+          )}
+          <CharCounter text={output} />
           <div className="output-actions">
             <button className="btn btn-secondary btn-sm" onClick={handleCopy}>
               <Copy size={14} /> {copied ? 'Copied!' : 'Copy'}
@@ -340,6 +301,7 @@ export default function Generator({ navPayload }) {
             <button className="btn btn-secondary btn-sm" onClick={handleGenerate}>
               <RefreshCw size={14} /> Regenerate
             </button>
+            {savedMsg && <span className="status-msg">{savedMsg}</span>}
           </div>
         </div>
       )}
@@ -348,86 +310,58 @@ export default function Generator({ navPayload }) {
       {abMode && (outputA || outputB) && (
         <>
           <div className="ab-grid">
-            <div className="ab-panel">
-              <div className="ab-panel-header">
-                <span className="ab-label ab-label-a">A</span>
-                <span className="ab-community">{commAObj?.name || 'Community A'}</span>
-                {commAObj?.platform && <span className={`platform-badge ${commAObj.platform.toLowerCase()}`}>{commAObj.platform}</span>}
+            {[{ label: 'A', labelClass: 'ab-label-a', comm: commAObj, out: outputA, copiedSide: copiedA, preview: previewA, setPreview: setPreviewA, side: 'A' },
+              { label: 'B', labelClass: 'ab-label-b', comm: commBObj, out: outputB, copiedSide: copiedB, preview: previewB, setPreview: setPreviewB, side: 'B' }
+            ].map(s => (
+              <div key={s.side} className="ab-panel">
+                <div className="ab-panel-header">
+                  <span className={`ab-label ${s.labelClass}`}>{s.label}</span>
+                  <span className="ab-community">{s.comm?.name || `Community ${s.label}`}</span>
+                  {s.comm?.platform && <span className={`platform-badge ${s.comm.platform.toLowerCase()}`}>{s.comm.platform}</span>}
+                  <button className="btn btn-secondary btn-sm" style={{ marginLeft: 'auto', padding: '3px 8px' }} onClick={() => s.setPreview(!s.preview)}>
+                    {s.preview ? <EyeOff size={12} /> : <Eye size={12} />}
+                  </button>
+                </div>
+                {s.preview ? (
+                  <PlatformPreview content={s.out} platform={s.comm?.platform || ''} visible />
+                ) : (
+                  <div className="generated-output" style={{ minHeight: 100 }}>{s.out}</div>
+                )}
+                <CharCounter text={s.out} />
+                <div className="output-actions" style={{ marginTop: 8 }}>
+                  <button className="btn btn-secondary btn-sm" onClick={() => handleCopyAB(s.out, s.side)}>
+                    <Copy size={14} /> {s.copiedSide ? 'Copied!' : 'Copy'}
+                  </button>
+                  <button className="btn btn-secondary btn-sm" onClick={() => handleSaveAB(s.out, s.side)}>
+                    <Save size={14} /> Save
+                  </button>
+                </div>
               </div>
-              <div className="generated-output" style={{ minHeight: 100 }}>{outputA}</div>
-              <div className="output-actions" style={{ marginTop: 8 }}>
-                <button className="btn btn-secondary btn-sm" onClick={() => handleCopyAB(outputA, 'A')}>
-                  <Copy size={14} /> {copiedA ? 'Copied!' : 'Copy'}
-                </button>
-                <button className="btn btn-secondary btn-sm" onClick={() => handleSaveAB(outputA, 'A')}>
-                  <Save size={14} /> Save
-                </button>
-              </div>
-            </div>
-            <div className="ab-panel">
-              <div className="ab-panel-header">
-                <span className="ab-label ab-label-b">B</span>
-                <span className="ab-community">{commBObj?.name || 'Community B'}</span>
-                {commBObj?.platform && <span className={`platform-badge ${commBObj.platform.toLowerCase()}`}>{commBObj.platform}</span>}
-              </div>
-              <div className="generated-output" style={{ minHeight: 100 }}>{outputB}</div>
-              <div className="output-actions" style={{ marginTop: 8 }}>
-                <button className="btn btn-secondary btn-sm" onClick={() => handleCopyAB(outputB, 'B')}>
-                  <Copy size={14} /> {copiedB ? 'Copied!' : 'Copy'}
-                </button>
-                <button className="btn btn-secondary btn-sm" onClick={() => handleSaveAB(outputB, 'B')}>
-                  <Save size={14} /> Save
-                </button>
-              </div>
-            </div>
+            ))}
           </div>
 
-          {/* Voting */}
           <div className="card">
             <div className="card-title">Which angle will you run with?</div>
             {!voted ? (
               <div className="ab-vote-row">
                 <button className="btn btn-primary" onClick={() => handleVote('A')}>
-                  <span className="ab-label ab-label-a" style={{ fontSize: 12, padding: '1px 8px' }}>A</span>
-                  A landed better
+                  <span className="ab-label ab-label-a" style={{ fontSize: 12, padding: '1px 8px' }}>A</span> A landed better
                 </button>
                 <span style={{ color: 'var(--muted)', fontSize: 14 }}>or</span>
                 <button className="btn btn-primary" onClick={() => handleVote('B')}>
-                  <span className="ab-label ab-label-b" style={{ fontSize: 12, padding: '1px 8px' }}>B</span>
-                  B landed better
+                  <span className="ab-label ab-label-b" style={{ fontSize: 12, padding: '1px 8px' }}>B</span> B landed better
                 </button>
               </div>
             ) : (
-              <p style={{ fontSize: 14, color: 'var(--success)', fontWeight: 500 }}>
-                Voted for {voted}! Result saved.
-              </p>
+              <p style={{ fontSize: 14, color: 'var(--success)', fontWeight: 500 }}>Voted for {voted}! Result saved.</p>
             )}
-
             {abResults.length > 0 && (
               <div className="ab-tally">
-                <div className="ab-tally-row">
-                  <span className="ab-tally-label">Angle A wins</span>
-                  <div className="ab-tally-bar-wrap">
-                    <div className="ab-tally-bar ab-bar-a" style={{ width: `${(aWins / (aWins + bWins || 1)) * 100}%` }} />
-                  </div>
-                  <span className="ab-tally-count">{aWins}</span>
-                </div>
-                <div className="ab-tally-row">
-                  <span className="ab-tally-label">Angle B wins</span>
-                  <div className="ab-tally-bar-wrap">
-                    <div className="ab-tally-bar ab-bar-b" style={{ width: `${(bWins / (aWins + bWins || 1)) * 100}%` }} />
-                  </div>
-                  <span className="ab-tally-count">{bWins}</span>
-                </div>
+                <div className="ab-tally-row"><span className="ab-tally-label">Angle A wins</span><div className="ab-tally-bar-wrap"><div className="ab-tally-bar ab-bar-a" style={{ width: `${(aWins / (aWins + bWins || 1)) * 100}%` }} /></div><span className="ab-tally-count">{aWins}</span></div>
+                <div className="ab-tally-row"><span className="ab-tally-label">Angle B wins</span><div className="ab-tally-bar-wrap"><div className="ab-tally-bar ab-bar-b" style={{ width: `${(bWins / (aWins + bWins || 1)) * 100}%` }} /></div><span className="ab-tally-count">{bWins}</span></div>
               </div>
             )}
-
-            {insight && (
-              <div className="ab-insight">
-                <Sparkles size={14} />
-                {insight}
-              </div>
-            )}
+            {insight && <div className="ab-insight"><Sparkles size={14} />{insight}</div>}
           </div>
         </>
       )}
