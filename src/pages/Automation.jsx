@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Send, Zap, Clock, CheckSquare, Brain, Rocket, Check, X, Trash2, Timer } from 'lucide-react';
+import { Send, Zap, Clock, CheckSquare, Brain, Rocket, Check, X, Trash2, Timer, Recycle, RefreshCw } from 'lucide-react';
 import { generatePost, resolveActiveBlocks, TONES, POST_TYPES } from '../lib/generatePost';
 import { postToPlatform } from '../lib/posting';
 
@@ -84,6 +84,11 @@ export default function Automation() {
   const scheduleRef = useRef(null);
   const smartRef = useRef(null);
 
+  // Recycler state
+  const [recycleEnabled, setRecycleEnabled] = useState(false);
+  const [recycleInterval, setRecycleInterval] = useState(30);
+  const [recyclingId, setRecyclingId] = useState(null);
+
   // Launch Mode state
   const [launchTopic, setLaunchTopic] = useState('');
   const [launchDate, setLaunchDate] = useState('');
@@ -111,6 +116,13 @@ export default function Automation() {
       const s = JSON.parse(savedSmart);
       setSmartTime(s.time || '10:00');
       setSmartActive(s.active || false);
+    }
+    // Recycler settings
+    const savedRecycler = localStorage.getItem('postforge_recycler');
+    if (savedRecycler) {
+      const r = JSON.parse(savedRecycler);
+      setRecycleEnabled(r.enabled || false);
+      setRecycleInterval(r.interval || 30);
     }
     // Set default launch date to today
     setLaunchDate(new Date().toISOString().split('T')[0]);
@@ -327,6 +339,58 @@ export default function Automation() {
     setLaunchActive(false);
   };
 
+  // Recycler helpers
+  const saveRecyclerSettings = (enabled, interval) => {
+    localStorage.setItem('postforge_recycler', JSON.stringify({ enabled, interval }));
+  };
+
+  const getEligibleForRecycle = () => {
+    const history = JSON.parse(localStorage.getItem('postforge_history') || '[]');
+    const cutoff = Date.now() - recycleInterval * 24 * 60 * 60 * 1000;
+    return history.filter(h => new Date(h.date).getTime() < cutoff && h.community && h.community !== 'General');
+  };
+
+  const handleRecycle = (post) => {
+    setRecyclingId(post.id);
+    const communities = JSON.parse(localStorage.getItem('postforge_communities') || '[]');
+    const community = communities.find(c => c.name === post.community);
+    const product = getProduct();
+    const blocks = getBlocks();
+
+    setTimeout(() => {
+      const activeFlags = blocks && community ? resolveActiveBlocks(blocks, community) : {};
+      // Generate a fresh version, incorporating original as style reference
+      let rewritten = generatePost(product, community, post.tone || 'Casual', post.postType || 'Show & Tell', blocks, activeFlags);
+      rewritten += `\n\n---\n\n[Refreshed take on a previous post. Write this as new, original content inspired by the angle and structure of the original but with fresh wording and updated framing.]\n\nOriginal:\n${post.content.slice(0, 500)}`;
+
+      // Add to approval queue
+      const queueItem = {
+        id: Date.now() + Math.random(),
+        community: post.community,
+        communityId: community?.id || null,
+        platform: post.platform || community?.platform || '',
+        content: rewritten,
+        status: 'pending',
+        date: new Date().toISOString(),
+        recycledFrom: post.date,
+      };
+      const updatedQueue = [queueItem, ...getQueue()];
+      saveQueue(updatedQueue);
+      setQueue(updatedQueue);
+
+      // Mark the original in history as recycled
+      const history = JSON.parse(localStorage.getItem('postforge_history') || '[]');
+      const updatedHistory = history.map(h =>
+        h.id === post.id ? { ...h, recycledAt: new Date().toISOString() } : h
+      );
+      localStorage.setItem('postforge_history', JSON.stringify(updatedHistory));
+
+      setRecyclingId(null);
+    }, 600);
+  };
+
+  const eligiblePosts = recycleEnabled ? getEligibleForRecycle() : [];
+
   const enabledCount = getEnabledCommunities().length;
 
   const formatDate = (iso) => {
@@ -434,6 +498,7 @@ export default function Automation() {
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                       <span className={`platform-badge ${item.platform.toLowerCase()}`}>{item.platform}</span>
                       <span style={{ fontSize: 13, color: 'var(--muted)' }}>{item.community}</span>
+                      {item.recycledFrom && <span className="recycled-badge"><Recycle size={10} /> Recycled</span>}
                     </div>
                     <span style={{ fontSize: 12, color: 'var(--muted)' }}>{formatDate(item.date)}</span>
                   </div>
@@ -629,6 +694,79 @@ export default function Automation() {
           </div>
         ) : (
           <p style={{ color: 'var(--muted)', fontSize: 14, textAlign: 'center', padding: 24 }}>No posts sent yet.</p>
+        )}
+      </div>
+
+      {/* Post Recycler */}
+      <div className="card">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <div className="card-title" style={{ marginBottom: 0 }}>
+            <Recycle size={16} style={{ verticalAlign: '-2px', marginRight: 8 }} />
+            Post Recycler
+          </div>
+          <div className="toggle-wrapper" onClick={() => {
+            const next = !recycleEnabled;
+            setRecycleEnabled(next);
+            saveRecyclerSettings(next, recycleInterval);
+          }}>
+            <div className={`toggle ${recycleEnabled ? 'toggle-on' : ''}`}>
+              <div className="toggle-knob" />
+            </div>
+            <span className="toggle-label">{recycleEnabled ? 'Enabled' : 'Disabled'}</span>
+          </div>
+        </div>
+
+        {recycleEnabled && (
+          <>
+            <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', marginBottom: 16 }}>
+              <div className="form-group">
+                <label className="form-label">Recycle posts older than</label>
+                <select className="form-select" value={recycleInterval} onChange={e => {
+                  const val = Number(e.target.value);
+                  setRecycleInterval(val);
+                  saveRecyclerSettings(recycleEnabled, val);
+                }}>
+                  <option value={30}>30 days</option>
+                  <option value={60}>60 days</option>
+                  <option value={90}>90 days</option>
+                </select>
+              </div>
+            </div>
+
+            <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 12 }}>
+              {eligiblePosts.length} post{eligiblePosts.length !== 1 ? 's' : ''} eligible for recycling. Recycled posts go to the Approval Queue.
+            </p>
+
+            {eligiblePosts.length > 0 ? (
+              <div className="recycler-list">
+                {eligiblePosts.slice(0, 20).map(post => (
+                  <div key={post.id} className="recycler-item">
+                    <div className="recycler-item-header">
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                        {post.platform && <span className={`platform-badge ${post.platform.toLowerCase()}`}>{post.platform}</span>}
+                        <span style={{ fontSize: 13, color: 'var(--muted)' }}>{post.community}</span>
+                        {post.recycledAt && <span className="recycled-badge">Already recycled</span>}
+                      </div>
+                      <span style={{ fontSize: 12, color: 'var(--muted)' }}>{formatDate(post.date)}</span>
+                    </div>
+                    <div className="recycler-item-preview">{post.content.slice(0, 150)}{post.content.length > 150 ? '...' : ''}</div>
+                    <button
+                      className="btn btn-primary btn-sm"
+                      onClick={() => handleRecycle(post)}
+                      disabled={recyclingId === post.id}
+                    >
+                      {recyclingId === post.id ? <span className="spinner" /> : <RefreshCw size={14} />}
+                      {recyclingId === post.id ? 'Rewriting...' : 'Recycle'}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p style={{ color: 'var(--muted)', fontSize: 14, textAlign: 'center', padding: 16 }}>
+                No posts old enough to recycle yet.
+              </p>
+            )}
+          </>
         )}
       </div>
     </div>

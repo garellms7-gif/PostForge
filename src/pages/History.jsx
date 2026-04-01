@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Trash2, Copy, Clock, Star, Sparkles } from 'lucide-react';
+import { Trash2, Copy, Clock, Star, Sparkles, Recycle } from 'lucide-react';
 
 function getTopPosts() {
   return JSON.parse(localStorage.getItem('postforge_top_posts') || '[]');
@@ -128,8 +128,14 @@ export default function History({ navigateTo }) {
                 <span style={{ fontSize: 13, color: 'var(--muted)' }}>{item.community}</span>
                 <span style={{ fontSize: 12, color: 'var(--border)' }}>|</span>
                 <span style={{ fontSize: 13, color: 'var(--muted)' }}>{item.postType} · {item.tone}</span>
+                {item.recycledAt && (
+                  <span className="recycled-label">
+                    <Recycle size={11} />
+                    Recycled from {new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  </span>
+                )}
               </div>
-              <span className="history-date">{formatDate(item.date)}</span>
+              <span className="history-date">{formatDate(item.recycledAt || item.date)}</span>
             </div>
             <div className="history-preview">{item.content}</div>
             <div className="output-actions" style={{ marginTop: 8 }}>

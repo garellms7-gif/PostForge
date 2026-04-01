@@ -1158,6 +1158,60 @@ body {
   color: #a855f7;
 }
 
+/* Post Recycler */
+.recycler-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.recycler-item {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+}
+
+.recycler-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.recycler-item-preview {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.5;
+  margin-bottom: 8px;
+}
+
+.recycled-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: rgba(34, 197, 94, 0.12);
+  color: var(--success);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.recycled-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: rgba(34, 197, 94, 0.1);
+  color: var(--success);
+}
+
 /* ===== Dashboard ===== */
 .dash-stats-grid {
   display: grid;
