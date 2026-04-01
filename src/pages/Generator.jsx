@@ -48,6 +48,12 @@ export default function Generator({ navPayload }) {
         setSelectedCommunity(String(match.id));
       }
     }
+
+    // Handle navPayload from burnout "Generate Check-in"
+    if (navPayload?.checkin) {
+      setPostType('Tips & Value');
+      setTone('Casual');
+    }
   }, [navPayload]);
 
   const handleGenerate = () => {
