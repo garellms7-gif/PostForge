@@ -937,3 +937,24 @@ body {
   color: var(--accent);
   border: 1px solid rgba(99, 102, 241, 0.25);
 }
+
+.top-post-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* History starred items */
+.history-item-starred {
+  border-color: rgba(99, 102, 241, 0.3);
+}
+
+.btn-star-active {
+  background: rgba(99, 102, 241, 0.12);
+  color: var(--accent);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+}
+
+.btn-star-active:hover {
+  background: rgba(99, 102, 241, 0.2);
+}

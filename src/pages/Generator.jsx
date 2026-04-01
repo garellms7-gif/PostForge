@@ -1,8 +1,26 @@
 import { useState, useEffect } from 'react';
-import { Sparkles, Copy, Save, RefreshCw } from 'lucide-react';
+import { Sparkles, Copy, Save, RefreshCw, Star } from 'lucide-react';
 import { TONES, POST_TYPES, generatePost, resolveActiveBlocks } from '../lib/generatePost';
 
-export default function Generator() {
+function getTopPosts() {
+  return JSON.parse(localStorage.getItem('postforge_top_posts') || '[]');
+}
+
+function getTopPostsForCommunity(communityName) {
+  if (!communityName) return [];
+  return getTopPosts()
+    .filter(p => p.community === communityName)
+    .slice(0, 3);
+}
+
+function buildTopPostsSection(topPosts) {
+  if (topPosts.length === 0) return '';
+  const header = '\n\n---\n\nThese posts performed well with this community — write in a similar style and structure:\n';
+  const examples = topPosts.map((p, i) => `[Example ${i + 1}]\n${p.content}`).join('\n\n');
+  return header + '\n' + examples;
+}
+
+export default function Generator({ navPayload }) {
   const [communities, setCommunities] = useState([]);
   const [product, setProduct] = useState({});
   const [blocks, setBlocks] = useState(null);
@@ -15,12 +33,21 @@ export default function Generator() {
 
   useEffect(() => {
     const cData = localStorage.getItem('postforge_communities');
-    if (cData) setCommunities(JSON.parse(cData));
+    const loadedCommunities = cData ? JSON.parse(cData) : [];
+    setCommunities(loadedCommunities);
     const pData = localStorage.getItem('postforge_product');
     if (pData) setProduct(JSON.parse(pData));
     const bData = localStorage.getItem('postforge_blocks');
     if (bData) setBlocks(JSON.parse(bData));
-  }, []);
+
+    // Handle navPayload from "Use as Inspiration"
+    if (navPayload?.communityName && loadedCommunities.length > 0) {
+      const match = loadedCommunities.find(c => c.name === navPayload.communityName);
+      if (match) {
+        setSelectedCommunity(String(match.id));
+      }
+    }
+  }, [navPayload]);
 
   const handleGenerate = () => {
     const community = communities.find(c => String(c.id) === String(selectedCommunity));
@@ -28,7 +55,13 @@ export default function Generator() {
     setGenerating(true);
     setOutput('');
     setTimeout(() => {
-      const post = generatePost(product, community, tone, postType, blocks, activeFlags);
+      let post = generatePost(product, community, tone, postType, blocks, activeFlags);
+      // Append top-performing posts for this community as style reference
+      const communityName = community?.name || '';
+      const topPosts = getTopPostsForCommunity(communityName);
+      if (topPosts.length > 0) {
+        post += buildTopPostsSection(topPosts);
+      }
       setOutput(post);
       setGenerating(false);
     }, 800);
@@ -55,10 +88,14 @@ export default function Generator() {
     localStorage.setItem('postforge_history', JSON.stringify([entry, ...history]));
   };
 
-  // Compute which blocks are active for the selected community to display
+  // Compute which blocks are active for the selected community
   const selectedComm = communities.find(c => String(c.id) === String(selectedCommunity));
   const activeFlags = blocks ? resolveActiveBlocks(blocks, selectedComm) : {};
   const activeBlockNames = Object.entries(activeFlags).filter(([, v]) => v).map(([k]) => k);
+
+  // Show top posts count for selected community
+  const communityName = selectedComm?.name || '';
+  const topPostCount = getTopPostsForCommunity(communityName).length;
 
   return (
     <div>
@@ -110,24 +147,36 @@ export default function Generator() {
           </div>
         </div>
 
-        {activeBlockNames.length > 0 && (
-          <div style={{ marginTop: 16 }}>
-            <label className="form-label" style={{ marginBottom: 6, display: 'block' }}>Active Content Blocks</label>
-            <div className="active-blocks-bar">
-              {activeBlockNames.map(k => {
-                const labels = {
-                  voiceSamples: 'Voice/Tone',
-                  updateLog: 'Update Log',
-                  roadmap: 'Roadmap',
-                  offerCta: 'CTA',
-                  personalStory: 'Story',
-                  socialProof: 'Social Proof',
-                };
-                return <span key={k} className="active-block-tag">{labels[k] || k}</span>;
-              })}
+        <div style={{ marginTop: 16, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {activeBlockNames.length > 0 && (
+            <div>
+              <label className="form-label" style={{ marginBottom: 6, display: 'block' }}>Active Content Blocks</label>
+              <div className="active-blocks-bar">
+                {activeBlockNames.map(k => {
+                  const labels = {
+                    voiceSamples: 'Voice/Tone',
+                    updateLog: 'Update Log',
+                    roadmap: 'Roadmap',
+                    offerCta: 'CTA',
+                    personalStory: 'Story',
+                    socialProof: 'Social Proof',
+                  };
+                  return <span key={k} className="active-block-tag">{labels[k] || k}</span>;
+                })}
+              </div>
             </div>
-          </div>
-        )}
+          )}
+          {topPostCount > 0 && (
+            <div>
+              <label className="form-label" style={{ marginBottom: 6, display: 'block' }}>Inspiration</label>
+              <div className="active-blocks-bar">
+                <span className="active-block-tag top-post-tag">
+                  <Star size={10} fill="currentColor" /> {topPostCount} top post{topPostCount !== 1 ? 's' : ''} from {communityName}
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
 
         <div style={{ marginTop: 20 }}>
           <button className="btn btn-primary" onClick={handleGenerate} disabled={generating}>

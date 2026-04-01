@@ -6,18 +6,32 @@ import ProductHub from './pages/ProductHub';
 import History from './pages/History';
 import Automation from './pages/Automation';
 
-const PAGES = [
-  { id: 'generator', label: 'Generator', icon: Sparkles, component: Generator },
-  { id: 'communities', label: 'Communities', icon: Users, component: Communities },
-  { id: 'product', label: 'Product Hub', icon: Package, component: ProductHub },
-  { id: 'automation', label: 'Automation', icon: Send, component: Automation },
-  { id: 'history', label: 'History', icon: Clock, component: History },
+const PAGE_COMPONENTS = {
+  generator: Generator,
+  communities: Communities,
+  product: ProductHub,
+  automation: Automation,
+  history: History,
+};
+
+const NAV_ITEMS = [
+  { id: 'generator', label: 'Generator', icon: Sparkles },
+  { id: 'communities', label: 'Communities', icon: Users },
+  { id: 'product', label: 'Product Hub', icon: Package },
+  { id: 'automation', label: 'Automation', icon: Send },
+  { id: 'history', label: 'History', icon: Clock },
 ];
 
 export default function App() {
   const [page, setPage] = useState('generator');
-  const current = PAGES.find(p => p.id === page);
-  const PageComponent = current.component;
+  const [navPayload, setNavPayload] = useState(null);
+
+  const navigateTo = (pageId, payload) => {
+    setNavPayload(payload || null);
+    setPage(pageId);
+  };
+
+  const PageComponent = PAGE_COMPONENTS[page];
 
   return (
     <>
@@ -27,11 +41,11 @@ export default function App() {
           PostForge
         </div>
         <nav className="sidebar-nav">
-          {PAGES.map(p => (
+          {NAV_ITEMS.map(p => (
             <button
               key={p.id}
               className={`sidebar-link ${page === p.id ? 'active' : ''}`}
-              onClick={() => setPage(p.id)}
+              onClick={() => navigateTo(p.id)}
             >
               <p.icon size={18} />
               {p.label}
@@ -40,7 +54,7 @@ export default function App() {
         </nav>
       </aside>
       <main className="main-content">
-        <PageComponent />
+        <PageComponent navigateTo={navigateTo} navPayload={navPayload} />
       </main>
     </>
   );
