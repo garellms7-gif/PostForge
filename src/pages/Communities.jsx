@@ -200,7 +200,7 @@ export default function Communities() {
                       {/* Block Settings */}
                       <div className="block-settings-section">
                         <div className="form-label" style={{ marginBottom: 10, fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>
-                          Block Settings
+                          Block Overrides
                         </div>
                         <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 12 }}>
                           Toggle which content blocks are included when generating posts for this community.

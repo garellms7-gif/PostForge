@@ -1,5 +1,7 @@
-import { useState, useEffect } from 'react';
-import { Save, Plus, Trash2, Package } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { Save, Plus, Trash2, Package, Power } from 'lucide-react';
+import { generatePost, resolveActiveBlocks, TONES, POST_TYPES } from '../lib/generatePost';
+import { postToPlatform } from '../lib/posting';
 
 const EMPTY_PRODUCT = {
   name: '',
@@ -10,34 +12,6 @@ const EMPTY_PRODUCT = {
   version: '',
 };
 
-const EMPTY_BLOCKS = {
-  voiceSamples: { enabled: false, samples: ['', '', '', '', ''] },
-  updateLog: { enabled: false, entries: [] },
-  roadmap: { enabled: false, items: [] },
-  offerCta: { enabled: false, ctaText: '', url: '', buttonLabel: '' },
-  personalStory: { enabled: false, story: '' },
-  socialProof: { enabled: false, entries: [] },
-};
-
-function BlockToggle({ label, hint, enabled, onToggle, children }) {
-  return (
-    <div className="content-block">
-      <div className="content-block-header">
-        <div>
-          <div className="content-block-title">{label}</div>
-          {hint && <div className="content-block-hint">{hint}</div>}
-        </div>
-        <div className="toggle-wrapper" onClick={onToggle}>
-          <div className={`toggle ${enabled ? 'toggle-on' : ''}`}>
-            <div className="toggle-knob" />
-          </div>
-        </div>
-      </div>
-      {enabled && <div className="content-block-body">{children}</div>}
-    </div>
-  );
-}
-
 function getProducts() {
   return JSON.parse(localStorage.getItem('postforge_products') || '[]');
 }
@@ -46,46 +20,144 @@ function saveProducts(products) {
   localStorage.setItem('postforge_products', JSON.stringify(products));
 }
 
+function getAllCommunities() {
+  return JSON.parse(localStorage.getItem('postforge_communities') || '[]');
+}
+
+function getPostLog() {
+  return JSON.parse(localStorage.getItem('postforge_post_log') || '[]');
+}
+
+function savePostLog(log) {
+  localStorage.setItem('postforge_post_log', JSON.stringify(log));
+}
+
+function addLogEntry(entry) {
+  const log = getPostLog();
+  savePostLog([entry, ...log].slice(0, 100));
+}
+
+function getQueue() {
+  return JSON.parse(localStorage.getItem('postforge_approval_queue') || '[]');
+}
+
+function saveQueue(queue) {
+  localStorage.setItem('postforge_approval_queue', JSON.stringify(queue));
+}
+
 export default function ProductHub() {
   const [tab, setTab] = useState('edit');
   const [product, setProduct] = useState(EMPTY_PRODUCT);
-  const [blocks, setBlocks] = useState(EMPTY_BLOCKS);
   const [activeProductId, setActiveProductId] = useState(null);
   const [products, setProducts] = useState([]);
   const [saved, setSaved] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+  const smartTimerRef = useRef(null);
 
   useEffect(() => {
-    // Load active product
     const data = localStorage.getItem('postforge_product');
     if (data) setProduct(JSON.parse(data));
-    const bData = localStorage.getItem('postforge_blocks');
-    if (bData) setBlocks({ ...EMPTY_BLOCKS, ...JSON.parse(bData) });
     const activeId = localStorage.getItem('postforge_active_product_id');
     if (activeId) setActiveProductId(activeId);
     setProducts(getProducts());
   }, []);
 
+  // Smart Mode timer for activated products
+  const runSmartModeForProduct = useCallback((prod) => {
+    const communities = getAllCommunities().filter(c => c.autoPost);
+    if (communities.length === 0) return;
+    const blocks = prod.blocks || null;
+    const tone = 'Casual';
+    const postType = 'Launch Announcement';
+
+    // Generate posts and add to approval queue
+    const newItems = communities.map(community => {
+      const activeFlags = blocks ? resolveActiveBlocks(blocks, community) : {};
+      return {
+        id: Date.now() + Math.random(),
+        community: community.name,
+        communityId: community.id,
+        platform: community.platform,
+        productId: prod.id,
+        productName: prod.name,
+        content: generatePost(prod, community, tone, postType, blocks, activeFlags),
+        status: 'pending',
+        date: new Date().toISOString(),
+      };
+    });
+
+    const updated = [...newItems, ...getQueue()];
+    saveQueue(updated);
+
+    // Auto-send approved items for this product
+    const approved = updated.filter(q => q.status === 'approved' && q.productId === prod.id);
+    approved.forEach(async (item) => {
+      const community = getAllCommunities().find(c => c.id === item.communityId);
+      if (!community) return;
+      let status = 'success';
+      let error = '';
+      try {
+        await postToPlatform(community, item.content);
+      } catch (err) {
+        status = 'failed';
+        error = err.message;
+      }
+      addLogEntry({
+        id: Date.now() + Math.random(),
+        community: item.community,
+        platform: item.platform,
+        productName: prod.name,
+        content: item.content.slice(0, 120) + (item.content.length > 120 ? '...' : ''),
+        status,
+        error,
+        date: new Date().toISOString(),
+      });
+      const q = getQueue().filter(q => q.id !== item.id);
+      saveQueue(q);
+    });
+  }, []);
+
+  // Run Smart Mode timer for any activated product
+  useEffect(() => {
+    if (smartTimerRef.current) clearInterval(smartTimerRef.current);
+
+    const activatedProducts = products.filter(p => p.activated);
+    if (activatedProducts.length === 0) return;
+
+    smartTimerRef.current = setInterval(() => {
+      const now = new Date();
+      for (const prod of activatedProducts) {
+        const time = prod.smartTime || '09:00';
+        const [h, m] = time.split(':').map(Number);
+        if (now.getHours() === h && now.getMinutes() === m && now.getSeconds() < 10) {
+          runSmartModeForProduct(prod);
+        }
+      }
+    }, 5000);
+
+    return () => clearInterval(smartTimerRef.current);
+  }, [products, runSmartModeForProduct]);
+
   const update = (field, value) => {
     setProduct(prev => ({ ...prev, [field]: value }));
   };
 
-  const updateBlock = (blockKey, updates) => {
-    setBlocks(prev => ({ ...prev, [blockKey]: { ...prev[blockKey], ...updates } }));
-  };
-
-  const persistActive = (prod, blk, id) => {
+  const persistActive = (prod, id) => {
     localStorage.setItem('postforge_product', JSON.stringify(prod));
-    localStorage.setItem('postforge_blocks', JSON.stringify(blk));
     if (id) localStorage.setItem('postforge_active_product_id', id);
+    // Also persist blocks from the product for Generator/Automation compatibility
+    const prods = getProducts();
+    const found = prods.find(p => p.id === id);
+    if (found?.blocks) {
+      localStorage.setItem('postforge_blocks', JSON.stringify(found.blocks));
+    }
   };
 
-  // Save updates to the currently-loaded product (overwrite in library)
   const handleSave = () => {
-    persistActive(product, blocks, activeProductId);
-    // Also update the product in the library if it exists
+    persistActive(product, activeProductId);
     if (activeProductId) {
       const updated = getProducts().map(p =>
-        p.id === activeProductId ? { ...p, ...product, blocks: { ...blocks } } : p
+        p.id === activeProductId ? { ...p, ...product } : p
       );
       saveProducts(updated);
       setProducts(updated);
@@ -94,20 +166,18 @@ export default function ProductHub() {
     setTimeout(() => setSaved(false), 2000);
   };
 
-  // Save as a brand new product in the library
   const handleSaveAsNew = () => {
     const id = String(Date.now());
-    const entry = { ...product, id, blocks: { ...blocks } };
+    const entry = { ...product, id, blocks: null, activated: false, smartTime: '09:00' };
     const updated = [...getProducts(), entry];
     saveProducts(updated);
     setProducts(updated);
     setActiveProductId(id);
-    persistActive(product, blocks, id);
+    persistActive(product, id);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
 
-  // Load a product from the library into the editor
   const handleLoad = (p) => {
     const loadedProduct = {
       name: p.name || '',
@@ -117,71 +187,67 @@ export default function ProductHub() {
       gumroadLink: p.gumroadLink || '',
       version: p.version || '',
     };
-    const loadedBlocks = p.blocks ? { ...EMPTY_BLOCKS, ...p.blocks } : { ...EMPTY_BLOCKS };
     setProduct(loadedProduct);
-    setBlocks(loadedBlocks);
     setActiveProductId(p.id);
-    persistActive(loadedProduct, loadedBlocks, p.id);
+    persistActive(loadedProduct, p.id);
     setTab('edit');
   };
 
-  // Delete a product from the library
   const handleDeleteProduct = (id) => {
+    if (confirmDeleteId !== id) {
+      setConfirmDeleteId(id);
+      return;
+    }
     const updated = getProducts().filter(p => p.id !== id);
     saveProducts(updated);
     setProducts(updated);
+    setConfirmDeleteId(null);
     if (activeProductId === id) {
       setActiveProductId(null);
       localStorage.removeItem('postforge_active_product_id');
     }
   };
 
-  // Update log helpers
-  const [newLogDate, setNewLogDate] = useState('');
-  const [newLogChange, setNewLogChange] = useState('');
-  const addLogEntry = () => {
-    if (!newLogChange.trim()) return;
-    const entry = { id: Date.now(), date: newLogDate || new Date().toISOString().split('T')[0], change: newLogChange.trim() };
-    updateBlock('updateLog', { entries: [entry, ...blocks.updateLog.entries] });
-    setNewLogDate('');
-    setNewLogChange('');
-  };
-  const deleteLogEntry = (id) => {
-    updateBlock('updateLog', { entries: blocks.updateLog.entries.filter(e => e.id !== id) });
+  const handleToggleActivate = (id) => {
+    const updated = getProducts().map(p => {
+      if (p.id === id) {
+        return { ...p, activated: !p.activated };
+      }
+      // Deactivate all others — only one active at a time
+      return { ...p, activated: false };
+    });
+    saveProducts(updated);
+    setProducts(updated);
+
+    // If we just activated this product, also load it as the active product
+    const activated = updated.find(p => p.id === id);
+    if (activated?.activated) {
+      setActiveProductId(id);
+      const loadedProduct = {
+        name: activated.name || '',
+        tagline: activated.tagline || '',
+        description: activated.description || '',
+        price: activated.price || '',
+        gumroadLink: activated.gumroadLink || '',
+        version: activated.version || '',
+      };
+      setProduct(loadedProduct);
+      persistActive(loadedProduct, id);
+    }
   };
 
-  // Roadmap helpers
-  const [newFeature, setNewFeature] = useState('');
-  const [newTargetDate, setNewTargetDate] = useState('');
-  const [newStatus, setNewStatus] = useState('Planned');
-  const addRoadmapItem = () => {
-    if (!newFeature.trim()) return;
-    const item = { id: Date.now(), feature: newFeature.trim(), targetDate: newTargetDate, status: newStatus };
-    updateBlock('roadmap', { items: [...blocks.roadmap.items, item] });
-    setNewFeature('');
-    setNewTargetDate('');
-    setNewStatus('Planned');
-  };
-  const deleteRoadmapItem = (id) => {
-    updateBlock('roadmap', { items: blocks.roadmap.items.filter(i => i.id !== id) });
-  };
-
-  // Social proof helpers
-  const [newProof, setNewProof] = useState('');
-  const addProofEntry = () => {
-    if (!newProof.trim()) return;
-    const entry = { id: Date.now(), text: newProof.trim() };
-    updateBlock('socialProof', { entries: [...blocks.socialProof.entries, entry] });
-    setNewProof('');
-  };
-  const deleteProofEntry = (id) => {
-    updateBlock('socialProof', { entries: blocks.socialProof.entries.filter(e => e.id !== id) });
+  const handleSmartTimeChange = (id, time) => {
+    const updated = getProducts().map(p =>
+      p.id === id ? { ...p, smartTime: time } : p
+    );
+    saveProducts(updated);
+    setProducts(updated);
   };
 
   return (
     <div>
       <h1 className="page-title">Product Hub</h1>
-      <p className="page-subtitle">Define your product details for personalized post generation.</p>
+      <p className="page-subtitle">Manage your products and activate Smart Mode automation.</p>
 
       {/* Tabs */}
       <div className="tab-bar">
@@ -196,203 +262,35 @@ export default function ProductHub() {
 
       {/* ===== Edit Product Tab ===== */}
       {tab === 'edit' && (
-        <>
-          <div className="card">
-            <div className="form-grid">
-              <div className="form-group">
-                <label className="form-label">Product Name</label>
-                <input className="form-input" placeholder="e.g. ShipFast" value={product.name} onChange={e => update('name', e.target.value)} />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Tagline</label>
-                <input className="form-input" placeholder="e.g. Ship your SaaS in days, not months" value={product.tagline} onChange={e => update('tagline', e.target.value)} />
-              </div>
-              <div className="form-group full-width">
-                <label className="form-label">Description</label>
-                <textarea className="form-textarea" placeholder="Describe what your product does and who it's for..." value={product.description} onChange={e => update('description', e.target.value)} />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Price</label>
-                <input className="form-input" placeholder="e.g. $49" value={product.price} onChange={e => update('price', e.target.value)} />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Gumroad Link</label>
-                <input className="form-input" placeholder="e.g. https://you.gumroad.com/product" value={product.gumroadLink} onChange={e => update('gumroadLink', e.target.value)} />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Version</label>
-                <input className="form-input" placeholder="e.g. 1.0.0" value={product.version} onChange={e => update('version', e.target.value)} />
-              </div>
+        <div className="card">
+          <div className="form-grid">
+            <div className="form-group">
+              <label className="form-label">Product Name</label>
+              <input className="form-input" placeholder="e.g. ShipFast" value={product.name} onChange={e => update('name', e.target.value)} />
             </div>
-
-            <div style={{ marginTop: 20, display: 'flex', alignItems: 'center', gap: 10 }}>
-              {activeProductId && (
-                <button className="btn btn-primary" onClick={handleSave}>
-                  <Save size={16} />
-                  Save
-                </button>
-              )}
-              <button className="btn btn-secondary" onClick={handleSaveAsNew}>
-                <Plus size={16} />
-                Save as New Product
-              </button>
-              {saved && <span className="status-msg">Saved!</span>}
+            <div className="form-group">
+              <label className="form-label">Tagline</label>
+              <input className="form-input" placeholder="e.g. Ship your SaaS in days, not months" value={product.tagline} onChange={e => update('tagline', e.target.value)} />
+            </div>
+            <div className="form-group full-width">
+              <label className="form-label">Description</label>
+              <textarea className="form-textarea" placeholder="Describe what your product does and who it's for..." value={product.description} onChange={e => update('description', e.target.value)} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Price</label>
+              <input className="form-input" placeholder="e.g. $49" value={product.price} onChange={e => update('price', e.target.value)} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Gumroad Link</label>
+              <input className="form-input" placeholder="e.g. https://you.gumroad.com/product" value={product.gumroadLink} onChange={e => update('gumroadLink', e.target.value)} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Version</label>
+              <input className="form-input" placeholder="e.g. 1.0.0" value={product.version} onChange={e => update('version', e.target.value)} />
             </div>
           </div>
 
-          {/* Content Blocks */}
-          <h2 className="section-title">Content Blocks</h2>
-          <p className="page-subtitle" style={{ marginBottom: 20 }}>Toggle blocks on/off to customize what gets included in generated posts.</p>
-
-          <BlockToggle
-            label="Voice/Tone Samples"
-            hint="PostForge will mimic this writing style"
-            enabled={blocks.voiceSamples.enabled}
-            onToggle={() => updateBlock('voiceSamples', { enabled: !blocks.voiceSamples.enabled })}
-          >
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {blocks.voiceSamples.samples.map((s, i) => (
-                <div className="form-group" key={i}>
-                  <label className="form-label">Sample {i + 1}</label>
-                  <textarea
-                    className="form-textarea"
-                    placeholder="Paste an example of your real writing..."
-                    style={{ minHeight: 60 }}
-                    value={s}
-                    onChange={e => {
-                      const updated = [...blocks.voiceSamples.samples];
-                      updated[i] = e.target.value;
-                      updateBlock('voiceSamples', { samples: updated });
-                    }}
-                  />
-                </div>
-              ))}
-            </div>
-          </BlockToggle>
-
-          <BlockToggle
-            label="Update Log"
-            hint="Include recent updates in posts"
-            enabled={blocks.updateLog.enabled}
-            onToggle={() => updateBlock('updateLog', { enabled: !blocks.updateLog.enabled })}
-          >
-            <div className="inline-form" style={{ marginBottom: 12 }}>
-              <div className="form-group" style={{ flex: '0 0 140px' }}>
-                <label className="form-label">Date</label>
-                <input className="form-input" type="date" value={newLogDate} onChange={e => setNewLogDate(e.target.value)} />
-              </div>
-              <div className="form-group">
-                <label className="form-label">What changed</label>
-                <input className="form-input" placeholder="e.g. Added dark mode support" value={newLogChange} onChange={e => setNewLogChange(e.target.value)} onKeyDown={e => e.key === 'Enter' && addLogEntry()} />
-              </div>
-              <button className="btn btn-primary btn-sm" onClick={addLogEntry}><Plus size={14} /> Add</button>
-            </div>
-            {blocks.updateLog.entries.map(e => (
-              <div key={e.id} className="block-list-item">
-                <div><span className="block-list-date">{e.date}</span> {e.change}</div>
-                <button className="btn btn-danger btn-sm" onClick={() => deleteLogEntry(e.id)}><Trash2 size={12} /></button>
-              </div>
-            ))}
-          </BlockToggle>
-
-          <BlockToggle
-            label="Roadmap Teaser"
-            hint="Tease upcoming features in posts"
-            enabled={blocks.roadmap.enabled}
-            onToggle={() => updateBlock('roadmap', { enabled: !blocks.roadmap.enabled })}
-          >
-            <div className="inline-form" style={{ marginBottom: 12 }}>
-              <div className="form-group">
-                <label className="form-label">Feature name</label>
-                <input className="form-input" placeholder="e.g. AI autofill" value={newFeature} onChange={e => setNewFeature(e.target.value)} onKeyDown={e => e.key === 'Enter' && addRoadmapItem()} />
-              </div>
-              <div className="form-group" style={{ flex: '0 0 140px' }}>
-                <label className="form-label">Target date</label>
-                <input className="form-input" type="date" value={newTargetDate} onChange={e => setNewTargetDate(e.target.value)} />
-              </div>
-              <div className="form-group" style={{ flex: '0 0 140px' }}>
-                <label className="form-label">Status</label>
-                <select className="form-select" value={newStatus} onChange={e => setNewStatus(e.target.value)}>
-                  <option>Planned</option>
-                  <option>In Progress</option>
-                </select>
-              </div>
-              <button className="btn btn-primary btn-sm" onClick={addRoadmapItem}><Plus size={14} /> Add</button>
-            </div>
-            {blocks.roadmap.items.map(item => (
-              <div key={item.id} className="block-list-item">
-                <div>
-                  <span className={`roadmap-status ${item.status === 'In Progress' ? 'in-progress' : 'planned'}`}>{item.status}</span>
-                  <span style={{ marginLeft: 8 }}>{item.feature}</span>
-                  {item.targetDate && <span className="block-list-date" style={{ marginLeft: 8 }}>{item.targetDate}</span>}
-                </div>
-                <button className="btn btn-danger btn-sm" onClick={() => deleteRoadmapItem(item.id)}><Trash2 size={12} /></button>
-              </div>
-            ))}
-          </BlockToggle>
-
-          <BlockToggle
-            label="Offer / CTA"
-            hint="Include a call to action in posts"
-            enabled={blocks.offerCta.enabled}
-            onToggle={() => updateBlock('offerCta', { enabled: !blocks.offerCta.enabled })}
-          >
-            <div className="form-grid">
-              <div className="form-group">
-                <label className="form-label">CTA Text</label>
-                <input className="form-input" placeholder='e.g. "Try it free"' value={blocks.offerCta.ctaText} onChange={e => updateBlock('offerCta', { ctaText: e.target.value })} />
-              </div>
-              <div className="form-group">
-                <label className="form-label">URL</label>
-                <input className="form-input" placeholder="https://..." value={blocks.offerCta.url} onChange={e => updateBlock('offerCta', { url: e.target.value })} />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Button Label</label>
-                <input className="form-input" placeholder="e.g. Get Started" value={blocks.offerCta.buttonLabel} onChange={e => updateBlock('offerCta', { buttonLabel: e.target.value })} />
-              </div>
-            </div>
-          </BlockToggle>
-
-          <BlockToggle
-            label="Personal Story"
-            hint="Include your background in posts"
-            enabled={blocks.personalStory.enabled}
-            onToggle={() => updateBlock('personalStory', { enabled: !blocks.personalStory.enabled })}
-          >
-            <div className="form-group">
-              <label className="form-label">Tell your story — who you are, where you started, why you built this</label>
-              <textarea
-                className="form-textarea"
-                style={{ minHeight: 120 }}
-                placeholder="I'm a solo developer who..."
-                value={blocks.personalStory.story}
-                onChange={e => updateBlock('personalStory', { story: e.target.value })}
-              />
-            </div>
-          </BlockToggle>
-
-          <BlockToggle
-            label="Social Proof"
-            hint="Include wins and numbers in posts"
-            enabled={blocks.socialProof.enabled}
-            onToggle={() => updateBlock('socialProof', { enabled: !blocks.socialProof.enabled })}
-          >
-            <div className="inline-form" style={{ marginBottom: 12 }}>
-              <div className="form-group">
-                <label className="form-label">Stat or win</label>
-                <input className="form-input" placeholder='e.g. "500 users", "Featured on Product Hunt"' value={newProof} onChange={e => setNewProof(e.target.value)} onKeyDown={e => e.key === 'Enter' && addProofEntry()} />
-              </div>
-              <button className="btn btn-primary btn-sm" onClick={addProofEntry}><Plus size={14} /> Add</button>
-            </div>
-            {blocks.socialProof.entries.map(e => (
-              <div key={e.id} className="block-list-item">
-                <div>{e.text}</div>
-                <button className="btn btn-danger btn-sm" onClick={() => deleteProofEntry(e.id)}><Trash2 size={12} /></button>
-              </div>
-            ))}
-          </BlockToggle>
-
-          <div style={{ marginTop: 24, display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ marginTop: 20, display: 'flex', alignItems: 'center', gap: 10 }}>
             {activeProductId && (
               <button className="btn btn-primary" onClick={handleSave}>
                 <Save size={16} />
@@ -405,7 +303,7 @@ export default function ProductHub() {
             </button>
             {saved && <span className="status-msg">Saved!</span>}
           </div>
-        </>
+        </div>
       )}
 
       {/* ===== My Products Tab ===== */}
@@ -413,32 +311,66 @@ export default function ProductHub() {
         <>
           {products.length > 0 ? (
             <div className="product-grid">
-              {products.map(p => (
-                <div
-                  key={p.id}
-                  className={`product-card ${activeProductId === p.id ? 'product-card-active' : ''}`}
-                >
-                  <div className="product-card-name">{p.name || 'Untitled Product'}</div>
-                  {p.tagline && <div className="product-card-tagline">{p.tagline}</div>}
-                  <div className="product-card-meta">
-                    {p.price && <span className="product-card-chip">{p.price}</span>}
-                    {p.version && <span className="product-card-chip">v{p.version}</span>}
+              {products.map(p => {
+                const isActive = activeProductId === p.id;
+                const isActivated = p.activated || false;
+                return (
+                  <div
+                    key={p.id}
+                    className={`product-card ${isActive ? 'product-card-active' : ''}`}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <div className="product-card-name">{p.name || 'Untitled Product'}</div>
+                      {isActivated && (
+                        <span className="product-activated-badge">Smart Mode On</span>
+                      )}
+                    </div>
+                    {p.tagline && <div className="product-card-tagline">{p.tagline}</div>}
+                    <div className="product-card-meta">
+                      {p.price && <span className="product-card-chip">{p.price}</span>}
+                      {p.version && <span className="product-card-chip">v{p.version}</span>}
+                    </div>
+
+                    {isActivated && (
+                      <div className="product-smart-time">
+                        <label className="form-label">Smart Mode Time</label>
+                        <input
+                          className="form-input"
+                          type="time"
+                          value={p.smartTime || '09:00'}
+                          onChange={e => handleSmartTimeChange(p.id, e.target.value)}
+                          style={{ padding: '6px 10px', fontSize: 13 }}
+                        />
+                      </div>
+                    )}
+
+                    <div className="product-card-actions">
+                      <button className="btn btn-primary btn-sm" onClick={() => handleLoad(p)}>
+                        Load
+                      </button>
+                      <button
+                        className={`btn btn-sm ${isActivated ? 'btn-activate-on' : 'btn-activate-off'}`}
+                        onClick={() => handleToggleActivate(p.id)}
+                      >
+                        <Power size={14} />
+                        {isActivated ? 'Deactivate' : 'Activate'}
+                      </button>
+                      <button
+                        className="btn btn-danger btn-sm"
+                        onClick={() => handleDeleteProduct(p.id)}
+                      >
+                        <Trash2 size={14} />
+                        {confirmDeleteId === p.id ? 'Confirm?' : ''}
+                      </button>
+                    </div>
                   </div>
-                  <div className="product-card-actions">
-                    <button className="btn btn-primary btn-sm" onClick={() => handleLoad(p)}>
-                      Load
-                    </button>
-                    <button className="btn btn-danger btn-sm" onClick={() => handleDeleteProduct(p.id)}>
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <div className="empty-state">
               <Package size={48} strokeWidth={1} style={{ opacity: 0.3, marginBottom: 12 }} />
-              <p>No products saved yet. Fill in the form and click Save as New Product.</p>
+              <p>No products saved yet.</p>
             </div>
           )}
         </>
