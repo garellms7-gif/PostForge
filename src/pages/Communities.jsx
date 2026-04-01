@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Plus, Trash2, Users, ChevronDown, ChevronUp } from 'lucide-react';
+import { getCommunityHealth, daysSinceLastPost } from '../lib/health';
 
 const PLATFORMS = ['Discord', 'Reddit', 'LinkedIn', 'X', 'Facebook', 'Slack', 'Other'];
 
@@ -148,6 +149,14 @@ export default function Communities() {
                         {c.platform}
                       </span>
                       <span className="community-name">{c.name}</span>
+                      {(() => {
+                        const health = getCommunityHealth(c.name);
+                        const days = daysSinceLastPost(c.name);
+                        if (health === 'active') return <span className="health-badge health-active">Active</span>;
+                        if (health === 'fading') return <span className="health-badge health-fading">Fading · {days}d</span>;
+                        if (health === 'silent') return <span className="health-badge health-silent">Silent · {days}d</span>;
+                        return <span className="health-badge health-none">No posts</span>;
+                      })()}
                       <div className="toggle-wrapper" onClick={() => updateCommunity(c.id, { autoPost: !c.autoPost })}>
                         <div className={`toggle ${c.autoPost ? 'toggle-on' : ''}`}>
                           <div className="toggle-knob" />

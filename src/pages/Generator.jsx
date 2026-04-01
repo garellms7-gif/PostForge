@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Sparkles, Copy, Save, RefreshCw, Star } from 'lucide-react';
+import { Sparkles, Copy, Save, RefreshCw, Star, AlertTriangle } from 'lucide-react';
 import { TONES, POST_TYPES, generatePost, resolveActiveBlocks } from '../lib/generatePost';
+import { getCommunityHealth, daysSinceLastPost, setLastPostDate } from '../lib/health';
 
 function getTopPosts() {
   return JSON.parse(localStorage.getItem('postforge_top_posts') || '[]');
@@ -86,6 +87,14 @@ export default function Generator({ navPayload }) {
     };
     const history = JSON.parse(localStorage.getItem('postforge_history') || '[]');
     localStorage.setItem('postforge_history', JSON.stringify([entry, ...history]));
+    // Update community health tracking
+    const commName = community?.name;
+    if (commName) {
+      setLastPostDate(commName);
+      // Re-read communities so the warning banner updates
+      const cData = localStorage.getItem('postforge_communities');
+      if (cData) setCommunities(JSON.parse(cData));
+    }
   };
 
   // Compute which blocks are active for the selected community
@@ -97,10 +106,32 @@ export default function Generator({ navPayload }) {
   const communityName = selectedComm?.name || '';
   const topPostCount = getTopPostsForCommunity(communityName).length;
 
+  // Compute unhealthy communities for warning banner
+  const unhealthyCommunities = communities
+    .map(c => {
+      const health = getCommunityHealth(c.name);
+      const days = daysSinceLastPost(c.name);
+      return { ...c, health, days };
+    })
+    .filter(c => c.health === 'fading' || c.health === 'silent');
+
   return (
     <div>
       <h1 className="page-title">Generator</h1>
       <p className="page-subtitle">Create engaging posts tailored to your communities.</p>
+
+      {unhealthyCommunities.length > 0 && (
+        <div className="health-warning-banner">
+          <AlertTriangle size={16} />
+          <div>
+            {unhealthyCommunities.map(c => (
+              <div key={c.id} className="health-warning-line">
+                You haven't posted to <strong>{c.name}</strong> in {c.days} days — audiences disengage after 10 days of silence.
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="card">
         <div className="card-title">Post Settings</div>
