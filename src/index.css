@@ -1374,6 +1374,76 @@ body {
   flex-shrink: 0;
 }
 
+/* ===== Discord Setup ===== */
+.discord-setup {
+  padding-bottom: 4px;
+}
+
+.discord-guide-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0;
+  font-family: inherit;
+  transition: color 0.15s;
+}
+
+.discord-guide-toggle:hover {
+  color: var(--text);
+}
+
+.discord-guide {
+  margin-top: 10px;
+  padding: 12px 16px;
+  background: rgba(88, 101, 242, 0.06);
+  border: 1px solid rgba(88, 101, 242, 0.15);
+  border-radius: 8px;
+}
+
+.discord-guide ol {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.8;
+}
+
+.discord-guide ol strong {
+  color: var(--accent);
+}
+
+.discord-guide-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.discord-guide-link:hover {
+  text-decoration: underline;
+}
+
+/* Discord badge in posting log */
+.log-discord-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: rgba(88, 101, 242, 0.12);
+  color: #5865f2;
+}
+
 /* ===== Undo Toast ===== */
 .undo-toast {
   position: fixed;

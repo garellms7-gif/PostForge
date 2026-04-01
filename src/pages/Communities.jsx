@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Plus, Trash2, Users, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, Trash2, Users, ChevronDown, ChevronUp, Zap, HelpCircle, ExternalLink } from 'lucide-react';
 import { getCommunityHealth, daysSinceLastPost } from '../lib/health';
+import { testDiscordWebhook } from '../lib/posting';
 import { UndoToast } from '../components/UxHelpers';
 
 const PLATFORMS = ['Discord', 'Reddit', 'LinkedIn', 'X', 'Facebook', 'Slack', 'Other'];
 
 const CREDENTIAL_FIELDS = {
-  Discord: [{ key: 'webhookUrl', label: 'Webhook URL', placeholder: 'https://discord.com/api/webhooks/...' }],
   LinkedIn: [{ key: 'accessToken', label: 'Access Token', placeholder: 'Your LinkedIn access token' }],
   Reddit: [
     { key: 'subreddit', label: 'Subreddit', placeholder: 'e.g. indiehackers' },
@@ -37,10 +37,92 @@ function getGlobalBlockDefaults() {
   if (!data) return {};
   const blocks = JSON.parse(data);
   const defaults = {};
-  for (const b of BLOCK_DEFS) {
-    defaults[b.key] = blocks[b.key]?.enabled || false;
-  }
+  for (const b of BLOCK_DEFS) defaults[b.key] = blocks[b.key]?.enabled || false;
   return defaults;
+}
+
+function DiscordSetup({ community, onUpdateCredential }) {
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState(null);
+  const [guideOpen, setGuideOpen] = useState(false);
+  const webhookUrl = community.credentials?.webhookUrl || '';
+
+  const handleTest = async () => {
+    if (!webhookUrl.trim()) {
+      setTestResult({ ok: false, msg: 'Enter a webhook URL first' });
+      return;
+    }
+    setTesting(true);
+    setTestResult(null);
+    try {
+      await testDiscordWebhook(webhookUrl);
+      setTestResult({ ok: true, msg: 'Connected!' });
+    } catch (err) {
+      setTestResult({ ok: false, msg: `Failed — ${err.message}` });
+    }
+    setTesting(false);
+  };
+
+  return (
+    <div className="discord-setup">
+      <div className="form-label" style={{ marginBottom: 10, fontSize: 14, fontWeight: 600, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 6 }}>
+        <svg width="16" height="12" viewBox="0 0 71 55" fill="currentColor" style={{ color: '#5865f2' }}>
+          <path d="M60.1 4.9A58.5 58.5 0 0045.4.2a.2.2 0 00-.2.1 40.8 40.8 0 00-1.8 3.7 54 54 0 00-16.2 0A37.4 37.4 0 0025.4.3a.2.2 0 00-.2-.1A58.4 58.4 0 0010.5 4.9a.2.2 0 00-.1.1C1.5 18.7-.9 32.2.3 45.5v.1a58.7 58.7 0 0017.7 9a.2.2 0 00.3-.1 42 42 0 003.6-5.9.2.2 0 00-.1-.3 38.6 38.6 0 01-5.5-2.6.2.2 0 01 0-.4l1.1-.9a.2.2 0 01.2 0 41.8 41.8 0 0035.6 0 .2.2 0 01.2 0l1.1.9a.2.2 0 010 .3 36.3 36.3 0 01-5.5 2.7.2.2 0 00-.1.3 47.2 47.2 0 003.6 5.9.2.2 0 00.3.1A58.5 58.5 0 0070.4 45.6v-.1c1.4-15-2.3-28-9.8-39.6a.2.2 0 00-.1 0zM23.7 37.3c-3.4 0-6.3-3.2-6.3-7s2.8-7 6.3-7 6.4 3.1 6.3 7-2.8 7-6.3 7zm23.2 0c-3.4 0-6.3-3.2-6.3-7s2.8-7 6.3-7 6.4 3.1 6.3 7-2.8 7-6.3 7z"/>
+        </svg>
+        Discord Setup
+      </div>
+
+      <div className="form-group" style={{ marginBottom: 12 }}>
+        <label className="form-label">Webhook URL</label>
+        <input
+          className="form-input"
+          placeholder="https://discord.com/api/webhooks/..."
+          value={webhookUrl}
+          onChange={e => onUpdateCredential(community.id, 'webhookUrl', e.target.value)}
+        />
+      </div>
+
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12 }}>
+        <button className="btn btn-primary btn-sm" onClick={handleTest} disabled={testing}>
+          {testing ? <span className="spinner" /> : <Zap size={14} />}
+          {testing ? 'Testing...' : 'Test Connection'}
+        </button>
+        {testResult && (
+          <span style={{ fontSize: 13, fontWeight: 500, color: testResult.ok ? 'var(--success)' : 'var(--danger)' }}>
+            {testResult.msg}
+          </span>
+        )}
+      </div>
+
+      {/* Discord Guide */}
+      <button className="discord-guide-toggle" onClick={() => setGuideOpen(!guideOpen)}>
+        <HelpCircle size={14} />
+        {guideOpen ? 'Hide setup guide' : 'How to get a Discord webhook URL'}
+        {guideOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+      </button>
+
+      {guideOpen && (
+        <div className="discord-guide">
+          <ol>
+            <li>Open your Discord server</li>
+            <li>Click the gear icon on any text channel</li>
+            <li>Click <strong>Integrations</strong> then <strong>Webhooks</strong></li>
+            <li>Click <strong>New Webhook</strong>, copy the URL</li>
+            <li>Paste it in the field above</li>
+          </ol>
+          <a
+            href="https://support.discord.com/hc/en-us/articles/228383668"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="discord-guide-link"
+          >
+            <ExternalLink size={12} />
+            Discord webhook documentation
+          </a>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function Communities() {
@@ -62,7 +144,6 @@ export default function Communities() {
 
   const handleAdd = () => {
     if (!name.trim()) return;
-    // Initialize blockSettings from current global defaults
     const defaults = getGlobalBlockDefaults();
     save([...communities, {
       id: Date.now(),
@@ -152,6 +233,7 @@ export default function Communities() {
             {communities.map(c => {
               const isExpanded = expandedId === c.id;
               const fields = CREDENTIAL_FIELDS[c.platform] || [];
+              const isDiscord = c.platform === 'Discord';
               return (
                 <div key={c.id} className="community-card">
                   <div className="community-item" style={{ borderRadius: isExpanded ? '8px 8px 0 0' : undefined }}>
@@ -191,7 +273,15 @@ export default function Communities() {
 
                   {isExpanded && (
                     <div className="community-settings">
-                      {fields.length > 0 && (
+                      {/* Discord-specific setup */}
+                      {isDiscord && (
+                        <div style={{ marginBottom: 20 }}>
+                          <DiscordSetup community={c} onUpdateCredential={updateCredential} />
+                        </div>
+                      )}
+
+                      {/* Non-Discord credential fields */}
+                      {!isDiscord && fields.length > 0 && (
                         <div className="form-grid" style={{ marginBottom: 20 }}>
                           {fields.map(f => (
                             <div className="form-group" key={f.key}>
@@ -205,19 +295,21 @@ export default function Communities() {
                               />
                             </div>
                           ))}
-                          <div className="form-group">
-                            <label className="form-label">Preferred Post Time</label>
-                            <input
-                              className="form-input"
-                              type="time"
-                              value={c.preferredTime || '09:00'}
-                              onChange={e => updateCommunity(c.id, { preferredTime: e.target.value })}
-                            />
-                          </div>
                         </div>
                       )}
 
-                      {/* Block Settings */}
+                      {/* Preferred time (all platforms) */}
+                      <div className="form-group" style={{ maxWidth: 200, marginBottom: 20 }}>
+                        <label className="form-label">Preferred Post Time</label>
+                        <input
+                          className="form-input"
+                          type="time"
+                          value={c.preferredTime || '10:00'}
+                          onChange={e => updateCommunity(c.id, { preferredTime: e.target.value })}
+                        />
+                      </div>
+
+                      {/* Block Overrides */}
                       <div className="block-settings-section">
                         <div className="form-label" style={{ marginBottom: 10, fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>
                           Block Overrides

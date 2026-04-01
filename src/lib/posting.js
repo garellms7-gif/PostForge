@@ -1,17 +1,37 @@
 /**
  * Post to Discord via webhook URL.
+ * Supports optional username override.
  */
-export async function postToDiscord(webhookUrl, content) {
+export async function postToDiscord(webhookUrl, content, username = 'PostForge') {
+  if (!webhookUrl) throw new Error('Discord webhook URL is required');
   const res = await fetch(webhookUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ content }),
+    body: JSON.stringify({ content, username }),
   });
   if (!res.ok) {
     const text = await res.text().catch(() => '');
     throw new Error(`Discord webhook failed (${res.status}): ${text}`);
   }
   return { success: true, platform: 'Discord' };
+}
+
+/**
+ * Test a Discord webhook by sending a test message.
+ * Returns { success: true } or throws.
+ */
+export async function testDiscordWebhook(webhookUrl) {
+  if (!webhookUrl) throw new Error('No webhook URL provided');
+  const res = await fetch(webhookUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ content: 'PostForge connection successful!', username: 'PostForge' }),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`Webhook test failed (${res.status}): ${text}`);
+  }
+  return { success: true };
 }
 
 /**
