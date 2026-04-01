@@ -746,14 +746,14 @@ body {
   color: var(--success);
 }
 
-/* Block Override chips in Communities */
-.block-override-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
+/* Block toggle list in Communities */
+.block-toggle-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
-.block-override-chip {
+.block-toggle-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -761,48 +761,11 @@ body {
   border-radius: 8px;
   border: 1px solid var(--border);
   background: var(--surface);
-  cursor: pointer;
-  font-family: inherit;
-  transition: all 0.15s;
 }
 
-.block-override-chip:hover {
-  border-color: var(--muted);
-}
-
-.block-override-name {
-  font-size: 12px;
+.block-toggle-name {
+  font-size: 13px;
   color: var(--text);
-}
-
-.block-override-state {
-  font-size: 11px;
-  font-weight: 600;
-  padding: 1px 6px;
-  border-radius: 3px;
-}
-
-.override-global .block-override-state {
-  background: rgba(113, 113, 122, 0.15);
-  color: var(--muted);
-}
-
-.override-off .block-override-state {
-  background: rgba(239, 68, 68, 0.15);
-  color: var(--danger);
-}
-
-.override-on .block-override-state {
-  background: rgba(34, 197, 94, 0.15);
-  color: var(--success);
-}
-
-.override-off {
-  border-color: rgba(239, 68, 68, 0.3);
-}
-
-.override-on {
-  border-color: rgba(34, 197, 94, 0.3);
 }
 
 /* Active blocks bar in Generator */

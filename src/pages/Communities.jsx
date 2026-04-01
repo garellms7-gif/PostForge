@@ -21,7 +21,7 @@ const CREDENTIAL_FIELDS = {
   ],
 };
 
-const BLOCK_KEYS = [
+const BLOCK_DEFS = [
   { key: 'voiceSamples', label: 'Voice/Tone Samples' },
   { key: 'updateLog', label: 'Update Log' },
   { key: 'roadmap', label: 'Roadmap Teaser' },
@@ -29,6 +29,17 @@ const BLOCK_KEYS = [
   { key: 'personalStory', label: 'Personal Story' },
   { key: 'socialProof', label: 'Social Proof' },
 ];
+
+function getGlobalBlockDefaults() {
+  const data = localStorage.getItem('postforge_blocks');
+  if (!data) return {};
+  const blocks = JSON.parse(data);
+  const defaults = {};
+  for (const b of BLOCK_DEFS) {
+    defaults[b.key] = blocks[b.key]?.enabled || false;
+  }
+  return defaults;
+}
 
 export default function Communities() {
   const [communities, setCommunities] = useState([]);
@@ -48,6 +59,8 @@ export default function Communities() {
 
   const handleAdd = () => {
     if (!name.trim()) return;
+    // Initialize blockSettings from current global defaults
+    const defaults = getGlobalBlockDefaults();
     save([...communities, {
       id: Date.now(),
       name: name.trim(),
@@ -55,7 +68,7 @@ export default function Communities() {
       credentials: {},
       autoPost: false,
       preferredTime: '09:00',
-      blockOverrides: {},
+      blockSettings: { ...defaults },
     }]);
     setName('');
     setPlatform('Discord');
@@ -77,25 +90,14 @@ export default function Communities() {
     }));
   };
 
-  const toggleBlockOverride = (communityId, blockKey) => {
+  const toggleBlock = (communityId, blockKey) => {
     save(communities.map(c => {
       if (c.id !== communityId) return c;
-      const overrides = { ...c.blockOverrides };
-      if (overrides[blockKey] === undefined) {
-        // First click: explicitly disable (override to off)
-        overrides[blockKey] = false;
-      } else if (overrides[blockKey] === false) {
-        // Second click: explicitly enable (override to on)
-        overrides[blockKey] = true;
-      } else {
-        // Third click: remove override (use global default)
-        delete overrides[blockKey];
-      }
-      return { ...c, blockOverrides: overrides };
+      const settings = { ...c.blockSettings };
+      settings[blockKey] = !settings[blockKey];
+      return { ...c, blockSettings: settings };
     }));
   };
-
-  const credentialFields = CREDENTIAL_FIELDS;
 
   return (
     <div>
@@ -137,8 +139,7 @@ export default function Communities() {
           <div className="community-list">
             {communities.map(c => {
               const isExpanded = expandedId === c.id;
-              const fields = credentialFields[c.platform] || [];
-              const hasSettings = fields.length > 0 || true; // always show for block overrides
+              const fields = CREDENTIAL_FIELDS[c.platform] || [];
               return (
                 <div key={c.id} className="community-card">
                   <div className="community-item" style={{ borderRadius: isExpanded ? '8px 8px 0 0' : undefined }}>
@@ -196,30 +197,26 @@ export default function Communities() {
                         </div>
                       )}
 
-                      {/* Block Overrides */}
-                      <div className="block-overrides-section">
+                      {/* Block Settings */}
+                      <div className="block-settings-section">
                         <div className="form-label" style={{ marginBottom: 10, fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>
-                          Block Overrides
+                          Block Settings
                         </div>
                         <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 12 }}>
-                          Click to cycle: Global default → Off → On → Global default
+                          Toggle which content blocks are included when generating posts for this community.
                         </p>
-                        <div className="block-override-grid">
-                          {BLOCK_KEYS.map(b => {
-                            const override = c.blockOverrides?.[b.key];
-                            let stateLabel = 'Global';
-                            let stateClass = 'override-global';
-                            if (override === false) { stateLabel = 'Off'; stateClass = 'override-off'; }
-                            if (override === true) { stateLabel = 'On'; stateClass = 'override-on'; }
+                        <div className="block-toggle-list">
+                          {BLOCK_DEFS.map(b => {
+                            const isOn = c.blockSettings?.[b.key] || false;
                             return (
-                              <button
-                                key={b.key}
-                                className={`block-override-chip ${stateClass}`}
-                                onClick={() => toggleBlockOverride(c.id, b.key)}
-                              >
-                                <span className="block-override-name">{b.label}</span>
-                                <span className="block-override-state">{stateLabel}</span>
-                              </button>
+                              <div key={b.key} className="block-toggle-row">
+                                <span className="block-toggle-name">{b.label}</span>
+                                <div className="toggle-wrapper" onClick={() => toggleBlock(c.id, b.key)}>
+                                  <div className={`toggle ${isOn ? 'toggle-on' : ''}`}>
+                                    <div className="toggle-knob" />
+                                  </div>
+                                </div>
+                              </div>
                             );
                           })}
                         </div>

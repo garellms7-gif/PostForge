@@ -5,17 +5,17 @@ const BLOCK_KEYS = ['voiceSamples', 'updateLog', 'roadmap', 'offerCta', 'persona
 
 /**
  * Resolve which blocks are active for a given community.
- * Uses global block settings, then applies per-community overrides.
+ * If the community has its own blockSettings, use those directly.
+ * Otherwise fall back to global block enabled flags.
  */
 function resolveActiveBlocks(blocks, community) {
   const active = {};
-  const overrides = community?.blockOverrides || {};
+  const communitySettings = community?.blockSettings;
   for (const key of BLOCK_KEYS) {
-    const globalEnabled = blocks?.[key]?.enabled || false;
-    if (overrides[key] !== undefined) {
-      active[key] = overrides[key];
+    if (communitySettings && communitySettings[key] !== undefined) {
+      active[key] = communitySettings[key];
     } else {
-      active[key] = globalEnabled;
+      active[key] = blocks?.[key]?.enabled || false;
     }
   }
   return active;
