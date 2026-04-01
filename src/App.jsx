@@ -1,14 +1,16 @@
 import { useState } from 'react';
-import { Sparkles, Users, Package, Clock, Hammer } from 'lucide-react';
+import { Sparkles, Users, Package, Clock, Hammer, Send } from 'lucide-react';
 import Generator from './pages/Generator';
 import Communities from './pages/Communities';
 import ProductHub from './pages/ProductHub';
 import History from './pages/History';
+import Automation from './pages/Automation';
 
 const PAGES = [
   { id: 'generator', label: 'Generator', icon: Sparkles, component: Generator },
   { id: 'communities', label: 'Communities', icon: Users, component: Communities },
   { id: 'product', label: 'Product Hub', icon: Package, component: ProductHub },
+  { id: 'automation', label: 'Automation', icon: Send, component: Automation },
   { id: 'history', label: 'History', icon: Clock, component: History },
 ];
 
