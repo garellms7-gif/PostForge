@@ -3,6 +3,7 @@ import { Plus, Trash2, Users, ChevronDown, ChevronUp, Zap, HelpCircle, ExternalL
 import { getCommunityHealth, daysSinceLastPost } from '../lib/health';
 import { testDiscordWebhook, testLinkedInToken, testRedditConnection, testTwitterConnection, getTwitterUsage } from '../lib/posting';
 import { UndoToast } from '../components/UxHelpers';
+import AdvancedPostingSettings from '../components/AdvancedPostingSettings';
 
 const PLATFORMS = ['Discord', 'Reddit', 'LinkedIn', 'X', 'Facebook', 'Slack', 'Other'];
 
@@ -690,6 +691,9 @@ export default function Communities() {
                           })}
                         </div>
                       </div>
+
+                      {/* Advanced Posting Settings */}
+                      <AdvancedPostingSettings community={c} onUpdate={updateCommunity} />
                     </div>
                   )}
                 </div>

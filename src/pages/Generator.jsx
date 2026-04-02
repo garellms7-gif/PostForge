@@ -7,6 +7,7 @@ import PostScorer, { OverallScoreBadge } from '../components/PostScorer';
 import { scorePost } from '../lib/scorer';
 import RewriteAssistant from '../components/RewriteAssistant';
 import PromptBuilder, { getCustomPromptConfig, DEFAULT_SYSTEM_PROMPT } from '../components/PromptBuilder';
+import { buildPostingSettingsContext } from '../components/AdvancedPostingSettings';
 
 function getTopPosts() {
   return JSON.parse(localStorage.getItem('postforge_top_posts') || '[]');
@@ -82,6 +83,9 @@ function generateForCommunity(product, community, tone, postType, blocks) {
   // Inject voice context
   const voiceCtx = getVoiceContext();
   if (voiceCtx) post = voiceCtx + '\n\n' + post;
+  // Inject per-community posting settings
+  const postingCtx = buildPostingSettingsContext(community);
+  if (postingCtx) post += postingCtx;
   const topPosts = getTopPostsForCommunity(community?.name || '');
   if (topPosts.length > 0) post += buildTopPostsSection(topPosts);
   return post;
