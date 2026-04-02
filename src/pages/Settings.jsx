@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Shield, Key, Clock, Trash2, AlertTriangle, Zap, Check, X, Lock } from 'lucide-react';
+import { Shield, Key, Clock, Trash2, AlertTriangle, Zap, Check, X, Lock, ShieldCheck } from 'lucide-react';
+import { getSafetySettings, saveSafetySettings } from '../lib/safety';
 import { testDiscordWebhook, testLinkedInToken, testRedditConnection, testTwitterConnection, getTwitterUsage } from '../lib/posting';
 
 const DEFAULT_SETTINGS = {
@@ -321,6 +322,88 @@ function CredentialsManager({ navigateTo }) {
   );
 }
 
+function SafetyConfig() {
+  const [safety, setSafety] = useState(getSafetySettings());
+
+  const toggle = (key) => {
+    const updated = { ...safety, [key]: !safety[key] };
+    setSafety(updated);
+    saveSafetySettings(updated);
+  };
+
+  const rules = [
+    {
+      key: 'redditSafeMode',
+      title: 'Reddit Safe Mode',
+      icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="#ff4500"><path d="M12 0A12 12 0 000 12a12 12 0 0012 12 12 12 0 0012-12A12 12 0 0012 0z"/></svg>,
+      items: [
+        'Never post the exact same content twice to the same subreddit',
+        'Add slight variations to post timing (±15 minutes randomness)',
+        'Minimum 4 hour gap between posts to same subreddit',
+        'Warn if posting frequency exceeds 3 posts per day per subreddit',
+      ],
+    },
+    {
+      key: 'spamPrevention',
+      title: 'Spam Prevention',
+      icon: <Shield size={14} />,
+      items: [
+        'AI automatically varies opening sentences across communities',
+        'Never use the exact same first line twice in 30 days',
+        'Flag posts that look too promotional (exclamation marks, caps, multiple links)',
+      ],
+    },
+    {
+      key: 'rateLimiting',
+      title: 'Rate Limiting',
+      icon: <Clock size={14} />,
+      items: [
+        'Discord: max 5 posts per hour per webhook',
+        'LinkedIn: max 3 posts per day per account',
+        'Twitter: track monthly limit and pace posts',
+        'Reddit: max 2 posts per day per subreddit',
+      ],
+    },
+    {
+      key: 'contentSafetyCheck',
+      title: 'Content Safety Check',
+      icon: <ShieldCheck size={14} />,
+      items: [
+        'Check if the post sounds authentic or too spammy before sending',
+        'Score from 1-10 — warn if authenticity score is below 6',
+        'Show the score and reason before the post goes out',
+      ],
+    },
+  ];
+
+  return (
+    <div>
+      <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 20 }}>
+        Safety features prevent bans and spam flags by enforcing rate limits, detecting duplicates, and scoring content authenticity.
+      </p>
+      {rules.map(rule => (
+        <div key={rule.key} className="card">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <div className="card-title" style={{ marginBottom: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+              {rule.icon}
+              {rule.title}
+            </div>
+            <div className="toggle-wrapper" onClick={() => toggle(rule.key)} style={{ marginLeft: 0 }}>
+              <div className={`toggle ${safety[rule.key] ? 'toggle-on' : ''}`}><div className="toggle-knob" /></div>
+              <span className="toggle-label">{safety[rule.key] ? 'On' : 'Off'}</span>
+            </div>
+          </div>
+          <ul className="safety-rule-list">
+            {rule.items.map((item, i) => (
+              <li key={i} className={safety[rule.key] ? '' : 'safety-rule-off'}>{item}</li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function Settings({ navigateTo }) {
   const [tab, setTab] = useState('general');
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
@@ -359,6 +442,9 @@ export default function Settings({ navigateTo }) {
         <button className={`tab-btn ${tab === 'general' ? 'tab-active' : ''}`} onClick={() => setTab('general')}>General</button>
         <button className={`tab-btn ${tab === 'credentials' ? 'tab-active' : ''}`} onClick={() => setTab('credentials')}>
           <Key size={14} /> Credentials
+        </button>
+        <button className={`tab-btn ${tab === 'safety' ? 'tab-active' : ''}`} onClick={() => setTab('safety')}>
+          <ShieldCheck size={14} /> Posting Safety
         </button>
       </div>
 
@@ -416,6 +502,8 @@ export default function Settings({ navigateTo }) {
       )}
 
       {tab === 'credentials' && <CredentialsManager navigateTo={navigateTo} />}
+
+      {tab === 'safety' && <SafetyConfig />}
 
       {saved && <div style={{ position: 'fixed', bottom: 20, right: 20, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 16px', fontSize: 13, color: 'var(--success)', fontWeight: 500 }}>Settings saved</div>}
     </div>

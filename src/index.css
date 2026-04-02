@@ -1444,6 +1444,117 @@ body {
   color: #5865f2;
 }
 
+/* ===== Posting Safety ===== */
+.safety-rule-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.safety-rule-list li {
+  font-size: 13px;
+  color: var(--text);
+  padding: 6px 10px;
+  background: var(--bg);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.safety-rule-list li::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--success);
+  flex-shrink: 0;
+}
+
+.safety-rule-list li.safety-rule-off {
+  color: var(--muted);
+  opacity: 0.5;
+}
+
+.safety-rule-list li.safety-rule-off::before {
+  background: var(--muted);
+}
+
+/* Safety Log */
+.safety-log-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.safety-log-item {
+  display: flex;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+
+.safety-log-blocked {
+  background: rgba(239, 68, 68, 0.04);
+  border-color: rgba(239, 68, 68, 0.2);
+}
+
+.safety-log-warn {
+  background: rgba(234, 179, 8, 0.04);
+  border-color: rgba(234, 179, 8, 0.15);
+}
+
+.safety-log-icon {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.safety-log-blocked .safety-log-icon {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--danger);
+}
+
+.safety-log-warn .safety-log-icon {
+  background: rgba(234, 179, 8, 0.15);
+  color: #eab308;
+}
+
+.safety-log-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.safety-log-rule {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 2px;
+}
+
+.safety-log-reason {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.4;
+  margin-bottom: 4px;
+}
+
+.safety-log-meta {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
 /* ===== Credentials Manager ===== */
 .cred-health-score {
   display: flex;

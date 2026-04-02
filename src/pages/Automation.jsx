@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
-import { Send, Zap, Clock, CheckSquare, Brain, Rocket, Check, X, Trash2, Timer, Recycle, RefreshCw } from 'lucide-react';
+import { Send, Zap, Clock, CheckSquare, Brain, Rocket, Check, X, Trash2, Timer, Recycle, RefreshCw, ShieldAlert } from 'lucide-react';
 import { generatePost, resolveActiveBlocks, TONES, POST_TYPES } from '../lib/generatePost';
 import { postToPlatform } from '../lib/posting';
+import { getSafetyLog } from '../lib/safety';
 
 const MODES = [
   { id: 'instant', label: 'Instant Mode', icon: Zap, desc: 'Send now to all enabled communities' },
@@ -84,6 +85,9 @@ export default function Automation() {
   const scheduleRef = useRef(null);
   const smartRef = useRef(null);
 
+  // Safety log state
+  const [safetyLog, setSafetyLog] = useState([]);
+
   // Recycler state
   const [recycleEnabled, setRecycleEnabled] = useState(false);
   const [recycleInterval, setRecycleInterval] = useState(30);
@@ -117,6 +121,7 @@ export default function Automation() {
       setSmartTime(s.time || '10:00');
       setSmartActive(s.active || false);
     }
+    setSafetyLog(getSafetyLog());
     // Recycler settings
     const savedRecycler = localStorage.getItem('postforge_recycler');
     if (savedRecycler) {
@@ -773,6 +778,44 @@ export default function Automation() {
               </p>
             )}
           </>
+        )}
+      </div>
+      {/* Safety Log */}
+      <div className="card">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <div className="card-title" style={{ marginBottom: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <ShieldAlert size={16} />
+            Safety Log
+          </div>
+          {safetyLog.length > 0 && (
+            <button className="btn btn-danger btn-sm" onClick={() => { localStorage.removeItem('postforge_safety_log'); setSafetyLog([]); }}>
+              <Trash2 size={14} /> Clear
+            </button>
+          )}
+        </div>
+        {safetyLog.length > 0 ? (
+          <div className="safety-log-list">
+            {safetyLog.slice(0, 30).map(entry => (
+              <div key={entry.id} className={`safety-log-item ${entry.type === 'blocked' ? 'safety-log-blocked' : 'safety-log-warn'}`}>
+                <div className="safety-log-icon">
+                  {entry.type === 'blocked' ? <X size={12} /> : <ShieldAlert size={12} />}
+                </div>
+                <div className="safety-log-body">
+                  <div className="safety-log-rule">{entry.rule}</div>
+                  <div className="safety-log-reason">{entry.reason}</div>
+                  <div className="safety-log-meta">
+                    {entry.platform && <span className={`platform-badge ${entry.platform.toLowerCase()}`}>{entry.platform}</span>}
+                    {entry.community && <span style={{ fontSize: 12, color: 'var(--muted)' }}>{entry.community}</span>}
+                    <span style={{ fontSize: 11, color: 'var(--muted)' }}>{formatDate(entry.date)}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p style={{ color: 'var(--muted)', fontSize: 14, textAlign: 'center', padding: 16 }}>
+            No safety events. Posts blocked or flagged by safety rules will appear here.
+          </p>
         )}
       </div>
     </div>
