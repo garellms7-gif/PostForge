@@ -5,6 +5,7 @@ import { getCommunityHealth, daysSinceLastPost, setLastPostDate } from '../lib/h
 import { CharCounter, PlatformPreview } from '../components/UxHelpers';
 import PostScorer, { OverallScoreBadge } from '../components/PostScorer';
 import { scorePost } from '../lib/scorer';
+import RewriteAssistant from '../components/RewriteAssistant';
 
 function getTopPosts() {
   return JSON.parse(localStorage.getItem('postforge_top_posts') || '[]');
@@ -322,6 +323,7 @@ export default function Generator({ navPayload }) {
             </button>
             {savedMsg && <span className="status-msg">{savedMsg}</span>}
           </div>
+          <RewriteAssistant content={output} onRewrite={(text) => { setOutput(text); setScores(null); scorePost(text, selectedComm?.name, selectedComm?.platform).then(setScores).catch(() => {}); }} />
         </div>
       )}
 
@@ -357,6 +359,10 @@ export default function Generator({ navPayload }) {
                     <Save size={14} /> Save
                   </button>
                 </div>
+                <RewriteAssistant content={s.out} onRewrite={(text) => {
+                  if (s.side === 'A') { setOutputA(text); setScoresA(null); scorePost(text, s.comm?.name, s.comm?.platform).then(setScoresA).catch(() => {}); }
+                  else { setOutputB(text); setScoresB(null); scorePost(text, s.comm?.name, s.comm?.platform).then(setScoresB).catch(() => {}); }
+                }} />
               </div>
             ))}
           </div>
