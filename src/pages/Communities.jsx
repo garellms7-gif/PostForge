@@ -1,19 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Plus, Trash2, Users, ChevronDown, ChevronUp, Zap, HelpCircle, ExternalLink, AlertTriangle } from 'lucide-react';
 import { getCommunityHealth, daysSinceLastPost } from '../lib/health';
-import { testDiscordWebhook, testLinkedInToken } from '../lib/posting';
+import { testDiscordWebhook, testLinkedInToken, testRedditConnection } from '../lib/posting';
 import { UndoToast } from '../components/UxHelpers';
 
 const PLATFORMS = ['Discord', 'Reddit', 'LinkedIn', 'X', 'Facebook', 'Slack', 'Other'];
 
 const CREDENTIAL_FIELDS = {
-  Reddit: [
-    { key: 'subreddit', label: 'Subreddit', placeholder: 'e.g. indiehackers' },
-    { key: 'username', label: 'Username', placeholder: 'Reddit username' },
-    { key: 'password', label: 'Password', placeholder: 'Reddit password', type: 'password' },
-    { key: 'appId', label: 'App ID', placeholder: 'Reddit app client ID' },
-    { key: 'appSecret', label: 'App Secret', placeholder: 'Reddit app secret', type: 'password' },
-  ],
   X: [
     { key: 'apiKey', label: 'API Key', placeholder: 'Twitter API key' },
     { key: 'apiSecret', label: 'API Secret', placeholder: 'Twitter API secret', type: 'password' },
@@ -226,6 +219,123 @@ function LinkedInSetup({ community, onUpdateCredential }) {
   );
 }
 
+function RedditSetup({ community, onUpdateCredential }) {
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState(null);
+  const [guideOpen, setGuideOpen] = useState(false);
+  const creds = community.credentials || {};
+
+  const handleTest = async () => {
+    if (!creds.appId || !creds.appSecret || !creds.username || !creds.password) {
+      setTestResult({ ok: false, msg: 'Fill in all four credential fields first' });
+      return;
+    }
+    setTesting(true);
+    setTestResult(null);
+    try {
+      const result = await testRedditConnection(creds.appId, creds.appSecret, creds.username, creds.password);
+      setTestResult({ ok: true, msg: `Connected as u/${result.username}` });
+    } catch (err) {
+      setTestResult({ ok: false, msg: `Failed — ${err.message}` });
+    }
+    setTesting(false);
+  };
+
+  return (
+    <div className="reddit-setup">
+      <div className="form-label" style={{ marginBottom: 10, fontSize: 14, fontWeight: 600, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 6 }}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="#ff4500"><path d="M12 0A12 12 0 000 12a12 12 0 0012 12 12 12 0 0012-12A12 12 0 0012 0zm5.01 4.744c.688 0 1.25.561 1.25 1.249a1.25 1.25 0 01-2.498.056l-2.597-.547-.8 3.747c1.824.07 3.48.632 4.674 1.488.308-.309.73-.491 1.207-.491.968 0 1.754.786 1.754 1.754 0 .716-.435 1.333-1.01 1.614a3.1 3.1 0 01.042.52c0 2.694-3.13 4.87-7.004 4.87-3.874 0-7.004-2.176-7.004-4.87 0-.183.015-.366.043-.534A1.748 1.748 0 014.028 12c0-.968.786-1.754 1.754-1.754.463 0 .898.196 1.207.49 1.207-.883 2.878-1.43 4.744-1.487l.885-4.182a.342.342 0 01.14-.197.35.35 0 01.238-.042l2.906.617a1.214 1.214 0 011.108-.701zM9.25 12C8.561 12 8 12.562 8 13.25 8 13.938 8.561 14.5 9.25 14.5s1.25-.562 1.25-1.25C10.5 12.562 9.939 12 9.25 12zm5.5 0c-.689 0-1.25.562-1.25 1.25 0 .688.561 1.25 1.25 1.25s1.25-.562 1.25-1.25c0-.688-.561-1.25-1.25-1.25zm-5.466 3.99a.327.327 0 00-.231.094.33.33 0 000 .463c.842.842 2.484.913 2.961.913.477 0 2.105-.056 2.961-.913a.361.361 0 000-.463.327.327 0 00-.462 0c-.545.533-1.684.73-2.512.73-.828 0-1.953-.197-2.498-.73a.327.327 0 00-.219-.094z"/></svg>
+        Reddit Setup
+      </div>
+
+      <div className="reddit-spam-warning">
+        Reddit detects spam patterns — PostForge automatically varies post timing and wording to keep your account safe.
+      </div>
+
+      <div className="form-grid" style={{ marginBottom: 12 }}>
+        <div className="form-group">
+          <label className="form-label">Subreddit (without r/)</label>
+          <input
+            className="form-input"
+            placeholder="e.g. indiehackers"
+            value={creds.subreddit || ''}
+            onChange={e => onUpdateCredential(community.id, 'subreddit', e.target.value)}
+          />
+        </div>
+        <div className="form-group">
+          <label className="form-label">Reddit Username</label>
+          <input
+            className="form-input"
+            placeholder="Your Reddit username"
+            value={creds.username || ''}
+            onChange={e => onUpdateCredential(community.id, 'username', e.target.value)}
+          />
+        </div>
+        <div className="form-group">
+          <label className="form-label">Reddit Password</label>
+          <input
+            className="form-input"
+            type="password"
+            placeholder="Your Reddit password"
+            value={creds.password || ''}
+            onChange={e => onUpdateCredential(community.id, 'password', e.target.value)}
+          />
+        </div>
+        <div className="form-group">
+          <label className="form-label">App Client ID</label>
+          <input
+            className="form-input"
+            placeholder="Under your app name on Reddit"
+            value={creds.appId || ''}
+            onChange={e => onUpdateCredential(community.id, 'appId', e.target.value)}
+          />
+        </div>
+        <div className="form-group">
+          <label className="form-label">App Client Secret</label>
+          <input
+            className="form-input"
+            type="password"
+            placeholder="Your app's secret key"
+            value={creds.appSecret || ''}
+            onChange={e => onUpdateCredential(community.id, 'appSecret', e.target.value)}
+          />
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12 }}>
+        <button className="btn btn-primary btn-sm" onClick={handleTest} disabled={testing}>
+          {testing ? <span className="spinner" /> : <Zap size={14} />}
+          {testing ? 'Testing...' : 'Test Connection'}
+        </button>
+        {testResult && (
+          <span style={{ fontSize: 13, fontWeight: 500, color: testResult.ok ? 'var(--success)' : 'var(--danger)' }}>
+            {testResult.msg}
+          </span>
+        )}
+      </div>
+
+      <button className="discord-guide-toggle" onClick={() => setGuideOpen(!guideOpen)}>
+        <HelpCircle size={14} />
+        {guideOpen ? 'Hide setup guide' : 'How to get your App ID and Secret'}
+        {guideOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+      </button>
+
+      {guideOpen && (
+        <div className="reddit-guide">
+          <ol>
+            <li>Go to <a href="https://www.reddit.com/prefs/apps" target="_blank" rel="noopener noreferrer">reddit.com/prefs/apps</a></li>
+            <li>Click <strong>"create another app"</strong> at the bottom</li>
+            <li>Select <strong>"script"</strong> as the type</li>
+            <li>Name it <strong>PostForge</strong>, set redirect to <code>http://localhost</code></li>
+            <li>Copy the <strong>Client ID</strong> (under the app name) and <strong>Client Secret</strong></li>
+            <li>Paste both here along with your Reddit username and password</li>
+          </ol>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Communities() {
   const [communities, setCommunities] = useState([]);
   const [name, setName] = useState('');
@@ -336,6 +446,7 @@ export default function Communities() {
               const fields = CREDENTIAL_FIELDS[c.platform] || [];
               const isDiscord = c.platform === 'Discord';
               const isLinkedIn = c.platform === 'LinkedIn';
+              const isReddit = c.platform === 'Reddit';
               return (
                 <div key={c.id} className="community-card">
                   <div className="community-item" style={{ borderRadius: isExpanded ? '8px 8px 0 0' : undefined }}>
@@ -389,8 +500,15 @@ export default function Communities() {
                         </div>
                       )}
 
+                      {/* Reddit-specific setup */}
+                      {isReddit && (
+                        <div style={{ marginBottom: 20 }}>
+                          <RedditSetup community={c} onUpdateCredential={updateCredential} />
+                        </div>
+                      )}
+
                       {/* Other platform credential fields */}
-                      {!isDiscord && !isLinkedIn && fields.length > 0 && (
+                      {!isDiscord && !isLinkedIn && !isReddit && fields.length > 0 && (
                         <div className="form-grid" style={{ marginBottom: 20 }}>
                           {fields.map(f => (
                             <div className="form-group" key={f.key}>

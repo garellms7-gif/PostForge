@@ -105,59 +105,106 @@ export async function testLinkedInToken(token) {
 }
 
 /**
- * Post to Reddit using username/password OAuth and the submit API.
+ * Authenticate with Reddit OAuth2 password flow.
  */
-export async function postToReddit(credentials, subreddit, content) {
-  const { username, password, appId, appSecret } = credentials;
-
-  // Get access token via password grant
-  const authRes = await fetch('https://www.reddit.com/api/v1/access_token', {
+async function redditAuth(appId, appSecret, username, password) {
+  if (!appId || !appSecret || !username || !password) {
+    throw new Error('Reddit credentials incomplete — provide App ID, App Secret, username, and password');
+  }
+  const res = await fetch('https://www.reddit.com/api/v1/access_token', {
     method: 'POST',
     headers: {
       Authorization: 'Basic ' + btoa(`${appId}:${appSecret}`),
       'Content-Type': 'application/x-www-form-urlencoded',
     },
-    body: new URLSearchParams({
-      grant_type: 'password',
-      username,
-      password,
-    }),
+    body: new URLSearchParams({ grant_type: 'password', username, password }),
   });
-  if (!authRes.ok) {
-    throw new Error(`Reddit auth failed (${authRes.status})`);
+  if (res.status === 401) {
+    throw new Error('Reddit auth failed — check your App ID and Secret');
   }
-  const authData = await authRes.json();
-  const token = authData.access_token;
+  if (!res.ok) {
+    throw new Error(`Reddit auth failed (${res.status})`);
+  }
+  const data = await res.json();
+  if (data.error) {
+    throw new Error(`Reddit auth error: ${data.error}`);
+  }
+  return data.access_token;
+}
+
+/**
+ * Post to Reddit using username/password OAuth and the submit API.
+ * Handles rate limits (429) with a single retry after 60 seconds.
+ * Handles banned/restricted subreddit errors.
+ */
+export async function postToReddit(credentials, subreddit, content) {
+  const { username, password, appId, appSecret } = credentials;
+  if (!subreddit) throw new Error('Subreddit name is required');
+
+  const token = await redditAuth(appId, appSecret, username, password);
 
   // Extract title from content (first line) and body (rest)
   const lines = content.split('\n');
   const title = lines[0].replace(/[^\w\s!?.,'"-]/g, '').trim().slice(0, 300) || 'New Post';
   const body = lines.slice(1).join('\n').trim();
 
-  const res = await fetch('https://oauth.reddit.com/api/submit', {
-    method: 'POST',
+  const submitPost = async () => {
+    const res = await fetch('https://oauth.reddit.com/api/submit', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'User-Agent': 'PostForge/1.0',
+      },
+      body: new URLSearchParams({ api_type: 'json', kind: 'self', sr: subreddit, title, text: body }),
+    });
+
+    if (res.status === 429) {
+      // Rate limited — wait 60s and retry once
+      await new Promise(r => setTimeout(r, 60000));
+      return submitPost();
+    }
+
+    if (res.status === 403) {
+      throw new Error(`Subreddit r/${subreddit} is restricted or you are banned — check your access`);
+    }
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      throw new Error(`Reddit submit failed (${res.status}): ${text}`);
+    }
+
+    const data = await res.json();
+    const errors = data.json?.errors;
+    if (errors?.length) {
+      const errMsg = errors.map(e => e.join(': ')).join(', ');
+      if (errMsg.toLowerCase().includes('banned') || errMsg.toLowerCase().includes('restricted')) {
+        throw new Error(`Subreddit r/${subreddit} is restricted or you are banned`);
+      }
+      throw new Error(`Reddit submit error: ${errMsg}`);
+    }
+    return { success: true, platform: 'Reddit' };
+  };
+
+  return submitPost();
+}
+
+/**
+ * Test Reddit credentials by authenticating and fetching the user profile.
+ */
+export async function testRedditConnection(appId, appSecret, username, password) {
+  const token = await redditAuth(appId, appSecret, username, password);
+  const res = await fetch('https://oauth.reddit.com/api/v1/me', {
     headers: {
       Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/x-www-form-urlencoded',
       'User-Agent': 'PostForge/1.0',
     },
-    body: new URLSearchParams({
-      api_type: 'json',
-      kind: 'self',
-      sr: subreddit,
-      title,
-      text: body,
-    }),
   });
   if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    throw new Error(`Reddit submit failed (${res.status}): ${text}`);
+    throw new Error(`Reddit profile fetch failed (${res.status})`);
   }
   const data = await res.json();
-  if (data.json?.errors?.length) {
-    throw new Error(`Reddit submit error: ${JSON.stringify(data.json.errors)}`);
-  }
-  return { success: true, platform: 'Reddit' };
+  return { success: true, username: data.name || username };
 }
 
 /**
