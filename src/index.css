@@ -1444,6 +1444,134 @@ body {
   color: #5865f2;
 }
 
+/* ===== Prompt Builder ===== */
+.pb-container {
+  margin-top: 16px;
+}
+
+.pb-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 0;
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  transition: color 0.15s;
+}
+
+.pb-toggle:hover {
+  color: var(--text);
+}
+
+.pb-active-badge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 7px;
+  border-radius: 8px;
+  background: rgba(99, 102, 241, 0.12);
+  color: var(--accent);
+  margin-left: auto;
+}
+
+.pb-panel {
+  padding: 14px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin-top: 6px;
+}
+
+.pb-section {
+  padding-bottom: 14px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.pb-textarea {
+  min-height: 140px;
+  font-size: 12px;
+  line-height: 1.6;
+  font-family: ui-monospace, Consolas, monospace;
+}
+
+.pb-vars {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.pb-var-chip {
+  padding: 3px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+
+.pb-var-chip:hover:not(:disabled) {
+  background: rgba(99, 102, 241, 0.1);
+  border-color: var(--accent);
+}
+
+.pb-var-chip:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.pb-templates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.pb-template-btn {
+  padding: 6px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+
+.pb-template-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.pb-template-saved {
+  border-color: rgba(99, 102, 241, 0.3);
+  color: var(--accent);
+}
+
+.pb-template-delete {
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 4px;
+  opacity: 0.5;
+}
+
+.pb-template-delete:hover {
+  color: var(--danger);
+  opacity: 1;
+}
+
 /* ===== My Voice / Tone Calibrator ===== */
 .voice-profile-card {
   border-color: rgba(99, 102, 241, 0.2);

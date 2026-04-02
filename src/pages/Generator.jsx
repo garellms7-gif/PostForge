@@ -6,6 +6,7 @@ import { CharCounter, PlatformPreview } from '../components/UxHelpers';
 import PostScorer, { OverallScoreBadge } from '../components/PostScorer';
 import { scorePost } from '../lib/scorer';
 import RewriteAssistant from '../components/RewriteAssistant';
+import PromptBuilder, { getCustomPromptConfig, DEFAULT_SYSTEM_PROMPT } from '../components/PromptBuilder';
 
 function getTopPosts() {
   return JSON.parse(localStorage.getItem('postforge_top_posts') || '[]');
@@ -29,6 +30,29 @@ function getABResults() {
 
 function saveABResults(results) {
   localStorage.setItem('postforge_ab_results', JSON.stringify(results));
+}
+
+function resolvePromptVariables(promptTemplate, product, community, tone, postType) {
+  const voiceData = JSON.parse(localStorage.getItem('postforge_voice') || '{}');
+  const blocks = JSON.parse(localStorage.getItem('postforge_blocks') || '{}');
+  const samples = (voiceData.samples || []).filter(s => s.trim().length > 20);
+  const voiceSamplesText = samples.length > 0 ? samples.slice(0, 3).map((s, i) => `Example ${i + 1}: ${s.slice(0, 300)}`).join('\n') : '';
+  const updateLogText = blocks.updateLog?.entries?.slice(0, 3).map(e => `${e.date}: ${e.change}`).join('\n') || '';
+  const roadmapText = blocks.roadmap?.items?.slice(0, 3).map(i => `${i.feature} (${i.status})`).join('\n') || '';
+
+  return promptTemplate
+    .replace(/\{\{product_name\}\}/g, product?.name || 'My Product')
+    .replace(/\{\{tagline\}\}/g, product?.tagline || '')
+    .replace(/\{\{description\}\}/g, product?.description || '')
+    .replace(/\{\{price\}\}/g, product?.price || '')
+    .replace(/\{\{gumroad_link\}\}/g, product?.gumroadLink || '')
+    .replace(/\{\{community_name\}\}/g, community?.name || 'the community')
+    .replace(/\{\{platform\}\}/g, community?.platform || '')
+    .replace(/\{\{tone\}\}/g, tone || 'Casual')
+    .replace(/\{\{post_type\}\}/g, postType || '')
+    .replace(/\{\{voice_samples\}\}/g, voiceSamplesText)
+    .replace(/\{\{update_log\}\}/g, updateLogText)
+    .replace(/\{\{roadmap\}\}/g, roadmapText);
 }
 
 function getVoiceContext() {
@@ -91,6 +115,7 @@ export default function Generator({ navPayload }) {
   const [savedMsg, setSavedMsg] = useState('');
   const [previewMode, setPreviewMode] = useState(false);
   const [scores, setScores] = useState(null);
+  const [promptConfig, setPromptConfig] = useState(getCustomPromptConfig());
 
   // A/B Test state
   const [abMode, setAbMode] = useState(false);
@@ -126,15 +151,37 @@ export default function Generator({ navPayload }) {
 
   const handleGenerate = () => {
     const community = communities.find(c => String(c.id) === String(selectedCommunity));
+    const config = getCustomPromptConfig();
     setGenerating(true);
     setOutput('');
     setScores(null);
     setPreviewMode(false);
+
+    // A/B prompt test: generate with both default and custom
+    if (config.abPromptTest && config.enabled && !abMode) {
+      setOutputA(''); setOutputB('');
+      setScoresA(null); setScoresB(null);
+      setTimeout(() => {
+        const defaultPost = generateForCommunity(product, community, tone, postType, blocks);
+        const customCtx = resolvePromptVariables(config.prompt, product, community, tone, postType);
+        const customPost = customCtx + '\n\n---\n\n' + generateForCommunity(product, community, tone, postType, blocks);
+        setOutputA(defaultPost);
+        setOutputB(customPost);
+        setGenerating(false);
+        scorePost(defaultPost, community?.name, community?.platform).then(setScoresA).catch(() => {});
+        scorePost(customPost, community?.name, community?.platform).then(setScoresB).catch(() => {});
+      }, 800);
+      return;
+    }
+
     setTimeout(() => {
-      const post = generateForCommunity(product, community, tone, postType, blocks);
+      let post = generateForCommunity(product, community, tone, postType, blocks);
+      if (config.enabled && config.prompt) {
+        const resolved = resolvePromptVariables(config.prompt, product, community, tone, postType);
+        post = resolved + '\n\n---\n\n' + post;
+      }
       setOutput(post);
       setGenerating(false);
-      // Auto-score
       scorePost(post, community?.name || 'General', community?.platform || '').then(setScores).catch(() => {});
     }, 800);
   };
@@ -296,11 +343,14 @@ export default function Generator({ navPayload }) {
           </div>
         )}
 
+        {/* Prompt Builder */}
+        <PromptBuilder onConfigChange={setPromptConfig} />
+
         <div style={{ marginTop: 20, display: 'flex', gap: 12, alignItems: 'center' }}>
           {!abMode ? (
             <button className="btn btn-primary" onClick={handleGenerate} disabled={generating}>
               {generating ? <span className="spinner" /> : <Sparkles size={16} />}
-              {generating ? 'Generating...' : 'Generate Post'}
+              {generating ? 'Generating...' : (promptConfig.abPromptTest && promptConfig.enabled ? 'Generate A/B Prompt Test' : 'Generate Post')}
             </button>
           ) : (
             <button className="btn btn-primary" onClick={handleGenerateAB} disabled={generating || !communityA || !communityB}>
@@ -351,7 +401,35 @@ export default function Generator({ navPayload }) {
         </div>
       )}
 
-      {/* A/B Test output */}
+      {/* A/B Prompt Test output (not community A/B) */}
+      {!abMode && promptConfig.abPromptTest && promptConfig.enabled && (outputA || outputB) && !output && (
+        <>
+          <div className="ab-grid">
+            <div className="ab-panel">
+              <div className="ab-panel-header">
+                <span className="ab-label ab-label-a">D</span>
+                <span className="ab-community">Default Prompt</span>
+                <OverallScoreBadge scores={scoresA} />
+              </div>
+              <div className="generated-output" style={{ minHeight: 100 }}>{outputA}</div>
+              <CharCounter text={outputA} />
+              <PostScorer content={outputA} communityName={selectedComm?.name} platform={selectedComm?.platform} />
+            </div>
+            <div className="ab-panel">
+              <div className="ab-panel-header">
+                <span className="ab-label ab-label-b">C</span>
+                <span className="ab-community">Custom Prompt</span>
+                <OverallScoreBadge scores={scoresB} />
+              </div>
+              <div className="generated-output" style={{ minHeight: 100 }}>{outputB}</div>
+              <CharCounter text={outputB} />
+              <PostScorer content={outputB} communityName={selectedComm?.name} platform={selectedComm?.platform} />
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* A/B Community Test output */}
       {abMode && (outputA || outputB) && (
         <>
           <div className="ab-grid">
