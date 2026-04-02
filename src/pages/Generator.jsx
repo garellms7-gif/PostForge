@@ -31,9 +31,33 @@ function saveABResults(results) {
   localStorage.setItem('postforge_ab_results', JSON.stringify(results));
 }
 
+function getVoiceContext() {
+  const data = JSON.parse(localStorage.getItem('postforge_voice') || '{}');
+  const profile = data.profile;
+  const samples = (data.samples || []).filter(s => s.trim().length > 20);
+  if (!profile && samples.length === 0) return '';
+
+  let ctx = '';
+  if (profile) {
+    ctx += `\n\n[Voice Profile: ${profile.tone || 'Friendly'} tone, ${profile.formality || 'casual'} formality, ${profile.avg_sentence_length || 'medium'} sentences, ${profile.humor_level || 'medium'} humor.`;
+    if (profile.writing_style_summary) ctx += ` ${profile.writing_style_summary}`;
+    if (profile.common_phrases?.length) ctx += ` Uses phrases like: ${profile.common_phrases.join(', ')}.`;
+    if (profile.avoid_phrases?.length) ctx += ` Avoids: ${profile.avoid_phrases.join(', ')}.`;
+    ctx += ']';
+  }
+  if (samples.length > 0) {
+    ctx += '\n\n[Write in a style matching these real examples from the author:]\n';
+    ctx += samples.slice(0, 3).map((s, i) => `Example ${i + 1}: ${s.slice(0, 300)}`).join('\n');
+  }
+  return ctx;
+}
+
 function generateForCommunity(product, community, tone, postType, blocks) {
   const activeFlags = blocks ? resolveActiveBlocks(blocks, community) : {};
   let post = generatePost(product, community, tone, postType, blocks, activeFlags);
+  // Inject voice context
+  const voiceCtx = getVoiceContext();
+  if (voiceCtx) post = voiceCtx + '\n\n' + post;
   const topPosts = getTopPostsForCommunity(community?.name || '');
   if (topPosts.length > 0) post += buildTopPostsSection(topPosts);
   return post;

@@ -3,6 +3,7 @@ import { Save, Plus, Trash2, Package, Power } from 'lucide-react';
 import { generatePost, resolveActiveBlocks } from '../lib/generatePost';
 import { postToPlatform } from '../lib/posting';
 import { UndoToast } from '../components/UxHelpers';
+import MyVoice from '../components/MyVoice';
 
 const EMPTY_PRODUCT = {
   name: '',
@@ -216,6 +217,9 @@ export default function ProductHub() {
           My Products
           {products.length > 0 && <span className="tab-count">{products.length}</span>}
         </button>
+        <button className={`tab-btn ${tab === 'voice' ? 'tab-active' : ''}`} onClick={() => setTab('voice')}>
+          My Voice
+        </button>
       </div>
 
       {/* ===== Edit Product Tab ===== */}
@@ -334,6 +338,9 @@ export default function ProductHub() {
           )}
         </>
       )}
+
+      {/* ===== My Voice Tab ===== */}
+      {tab === 'voice' && <MyVoice />}
 
       {undoProduct && (
         <UndoToast

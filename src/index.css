@@ -1444,6 +1444,114 @@ body {
   color: #5865f2;
 }
 
+/* ===== My Voice / Tone Calibrator ===== */
+.voice-profile-card {
+  border-color: rgba(99, 102, 241, 0.2);
+}
+
+.vp-badges {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.vp-tone-badge {
+  font-size: 14px;
+  font-weight: 700;
+  padding: 4px 14px;
+  border-radius: 8px;
+  background: rgba(99, 102, 241, 0.12);
+  color: var(--accent);
+}
+
+.vp-formality-badge {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 8px;
+  text-transform: capitalize;
+}
+
+.vp-metrics {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.vp-metric {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.vp-metric-label {
+  font-size: 12px;
+  color: var(--muted);
+  width: 110px;
+  flex-shrink: 0;
+}
+
+.vp-metric-bar-wrap {
+  flex: 1;
+  height: 6px;
+  background: var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.vp-metric-bar {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 3px;
+  transition: width 0.4s;
+}
+
+.vp-humor-bar {
+  background: #eab308;
+}
+
+.vp-metric-value {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  width: 50px;
+  text-align: right;
+  text-transform: capitalize;
+}
+
+.vp-chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.vp-chip {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 3px 10px;
+  border-radius: 12px;
+  background: rgba(99, 102, 241, 0.1);
+  color: var(--accent);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+}
+
+.vp-chip-avoid {
+  background: rgba(239, 68, 68, 0.08);
+  color: var(--danger);
+  border-color: rgba(239, 68, 68, 0.2);
+  text-decoration: line-through;
+}
+
+.vp-summary {
+  margin-top: 14px;
+  padding: 12px 14px;
+  background: var(--bg);
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.6;
+}
+
 /* ===== Rewrite Assistant ===== */
 .rw-container {
   margin-top: 8px;
