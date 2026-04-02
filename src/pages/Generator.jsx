@@ -3,6 +3,8 @@ import { Sparkles, Copy, Save, RefreshCw, Star, AlertTriangle, FlaskConical, Eye
 import { TONES, POST_TYPES, generatePost, resolveActiveBlocks } from '../lib/generatePost';
 import { getCommunityHealth, daysSinceLastPost, setLastPostDate } from '../lib/health';
 import { CharCounter, PlatformPreview } from '../components/UxHelpers';
+import PostScorer, { OverallScoreBadge } from '../components/PostScorer';
+import { scorePost } from '../lib/scorer';
 
 function getTopPosts() {
   return JSON.parse(localStorage.getItem('postforge_top_posts') || '[]');
@@ -63,6 +65,7 @@ export default function Generator({ navPayload }) {
   const [copied, setCopied] = useState(false);
   const [savedMsg, setSavedMsg] = useState('');
   const [previewMode, setPreviewMode] = useState(false);
+  const [scores, setScores] = useState(null);
 
   // A/B Test state
   const [abMode, setAbMode] = useState(false);
@@ -74,6 +77,8 @@ export default function Generator({ navPayload }) {
   const [copiedB, setCopiedB] = useState(false);
   const [previewA, setPreviewA] = useState(false);
   const [previewB, setPreviewB] = useState(false);
+  const [scoresA, setScoresA] = useState(null);
+  const [scoresB, setScoresB] = useState(null);
   const [voted, setVoted] = useState(null);
   const [abResults, setAbResults] = useState([]);
 
@@ -98,10 +103,14 @@ export default function Generator({ navPayload }) {
     const community = communities.find(c => String(c.id) === String(selectedCommunity));
     setGenerating(true);
     setOutput('');
+    setScores(null);
     setPreviewMode(false);
     setTimeout(() => {
-      setOutput(generateForCommunity(product, community, tone, postType, blocks));
+      const post = generateForCommunity(product, community, tone, postType, blocks);
+      setOutput(post);
       setGenerating(false);
+      // Auto-score
+      scorePost(post, community?.name || 'General', community?.platform || '').then(setScores).catch(() => {});
     }, 800);
   };
 
@@ -110,11 +119,17 @@ export default function Generator({ navPayload }) {
     const commB = communities.find(c => String(c.id) === String(communityB));
     setGenerating(true);
     setOutputA(''); setOutputB(''); setVoted(null);
+    setScoresA(null); setScoresB(null);
     setPreviewA(false); setPreviewB(false);
     setTimeout(() => {
-      setOutputA(generateForCommunity(product, commA, tone, postType, blocks));
-      setOutputB(generateForCommunity(product, commB, tone, postType, blocks));
+      const postA = generateForCommunity(product, commA, tone, postType, blocks);
+      const postB = generateForCommunity(product, commB, tone, postType, blocks);
+      setOutputA(postA);
+      setOutputB(postB);
       setGenerating(false);
+      // Auto-score both
+      scorePost(postA, commA?.name || 'A', commA?.platform || '').then(setScoresA).catch(() => {});
+      scorePost(postB, commB?.name || 'B', commB?.platform || '').then(setScoresB).catch(() => {});
     }, 800);
   };
 
@@ -279,7 +294,10 @@ export default function Generator({ navPayload }) {
       {!abMode && output && (
         <div className="card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-            <div className="card-title" style={{ marginBottom: 0 }}>Generated Post</div>
+            <div className="card-title" style={{ marginBottom: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+              Generated Post
+              <OverallScoreBadge scores={scores} />
+            </div>
             <button className="btn btn-secondary btn-sm" onClick={() => setPreviewMode(!previewMode)}>
               {previewMode ? <EyeOff size={14} /> : <Eye size={14} />}
               {previewMode ? 'Raw' : 'Preview'}
@@ -291,6 +309,7 @@ export default function Generator({ navPayload }) {
             <div className="generated-output">{output}</div>
           )}
           <CharCounter text={output} />
+          <PostScorer content={output} communityName={selectedComm?.name} platform={selectedComm?.platform} />
           <div className="output-actions">
             <button className="btn btn-secondary btn-sm" onClick={handleCopy}>
               <Copy size={14} /> {copied ? 'Copied!' : 'Copy'}
@@ -310,14 +329,15 @@ export default function Generator({ navPayload }) {
       {abMode && (outputA || outputB) && (
         <>
           <div className="ab-grid">
-            {[{ label: 'A', labelClass: 'ab-label-a', comm: commAObj, out: outputA, copiedSide: copiedA, preview: previewA, setPreview: setPreviewA, side: 'A' },
-              { label: 'B', labelClass: 'ab-label-b', comm: commBObj, out: outputB, copiedSide: copiedB, preview: previewB, setPreview: setPreviewB, side: 'B' }
+            {[{ label: 'A', labelClass: 'ab-label-a', comm: commAObj, out: outputA, copiedSide: copiedA, preview: previewA, setPreview: setPreviewA, side: 'A', sc: scoresA },
+              { label: 'B', labelClass: 'ab-label-b', comm: commBObj, out: outputB, copiedSide: copiedB, preview: previewB, setPreview: setPreviewB, side: 'B', sc: scoresB }
             ].map(s => (
               <div key={s.side} className="ab-panel">
                 <div className="ab-panel-header">
                   <span className={`ab-label ${s.labelClass}`}>{s.label}</span>
                   <span className="ab-community">{s.comm?.name || `Community ${s.label}`}</span>
                   {s.comm?.platform && <span className={`platform-badge ${s.comm.platform.toLowerCase()}`}>{s.comm.platform}</span>}
+                  <OverallScoreBadge scores={s.sc} />
                   <button className="btn btn-secondary btn-sm" style={{ marginLeft: 'auto', padding: '3px 8px' }} onClick={() => s.setPreview(!s.preview)}>
                     {s.preview ? <EyeOff size={12} /> : <Eye size={12} />}
                   </button>
@@ -328,6 +348,7 @@ export default function Generator({ navPayload }) {
                   <div className="generated-output" style={{ minHeight: 100 }}>{s.out}</div>
                 )}
                 <CharCounter text={s.out} />
+                <PostScorer content={s.out} communityName={s.comm?.name} platform={s.comm?.platform} />
                 <div className="output-actions" style={{ marginTop: 8 }}>
                   <button className="btn btn-secondary btn-sm" onClick={() => handleCopyAB(s.out, s.side)}>
                     <Copy size={14} /> {s.copiedSide ? 'Copied!' : 'Copy'}
