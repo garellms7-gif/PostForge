@@ -4,6 +4,7 @@ import { generatePost, resolveActiveBlocks, TONES, POST_TYPES } from '../lib/gen
 import { postToPlatform } from '../lib/posting';
 import { getSafetyLog } from '../lib/safety';
 import OptimalTiming from '../components/OptimalTiming';
+import PostQueue from '../components/PostQueue';
 
 const MODES = [
   { id: 'instant', label: 'Instant Mode', icon: Zap, desc: 'Send now to all enabled communities' },
@@ -73,6 +74,7 @@ function saveLaunchSchedule(schedule) {
 }
 
 export default function Automation() {
+  const [view, setView] = useState('modes'); // 'modes' or 'queue'
   const [mode, setMode] = useState('instant');
   const [tone, setTone] = useState('Casual');
   const [postType, setPostType] = useState('Launch Announcement');
@@ -420,6 +422,21 @@ export default function Automation() {
       <h1 className="page-title">Automation</h1>
       <p className="page-subtitle">Auto-post to your enabled communities. {enabledCount} community{enabledCount !== 1 ? 'ies' : ''} enabled.</p>
 
+      {/* View tabs */}
+      <div className="tab-bar">
+        <button className={`tab-btn ${view === 'modes' ? 'tab-active' : ''}`} onClick={() => setView('modes')}>Automation Modes</button>
+        <button className={`tab-btn ${view === 'queue' ? 'tab-active' : ''}`} onClick={() => setView('queue')}>
+          Post Queue
+          {(() => {
+            const qLen = [...JSON.parse(localStorage.getItem('postforge_approval_queue') || '[]'), ...JSON.parse(localStorage.getItem('postforge_launch_schedule') || '[]').filter(l => l.status === 'pending'), ...JSON.parse(localStorage.getItem('postforge_manual_schedule') || '[]')].length;
+            return qLen > 0 ? <span className="tab-count">{qLen}</span> : null;
+          })()}
+        </button>
+      </div>
+
+      {view === 'queue' && <PostQueue />}
+
+      {view === 'modes' && <>
       {/* Mode selector */}
       <div className="mode-grid mode-grid-5">
         {MODES.map(m => (
@@ -668,6 +685,8 @@ export default function Automation() {
           )}
         </>
       )}
+
+      </>}
 
       {/* Optimal Timing */}
       <OptimalTiming />
