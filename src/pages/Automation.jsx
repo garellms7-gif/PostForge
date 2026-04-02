@@ -3,6 +3,7 @@ import { Send, Zap, Clock, CheckSquare, Brain, Rocket, Check, X, Trash2, Timer, 
 import { generatePost, resolveActiveBlocks, TONES, POST_TYPES } from '../lib/generatePost';
 import { postToPlatform } from '../lib/posting';
 import { getSafetyLog } from '../lib/safety';
+import OptimalTiming from '../components/OptimalTiming';
 
 const MODES = [
   { id: 'instant', label: 'Instant Mode', icon: Zap, desc: 'Send now to all enabled communities' },
@@ -667,6 +668,9 @@ export default function Automation() {
           )}
         </>
       )}
+
+      {/* Optimal Timing */}
+      <OptimalTiming />
 
       {/* Posting Log */}
       <div className="card">

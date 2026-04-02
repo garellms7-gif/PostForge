@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Shield, Key, Clock, Trash2, AlertTriangle, Zap, Check, X, Lock, ShieldCheck } from 'lucide-react';
+import { Shield, Key, Clock, Trash2, AlertTriangle, Zap, Check, X, Lock, ShieldCheck, Globe } from 'lucide-react';
 import { getSafetySettings, saveSafetySettings } from '../lib/safety';
 import { testDiscordWebhook, testLinkedInToken, testRedditConnection, testTwitterConnection, getTwitterUsage } from '../lib/posting';
 
@@ -480,6 +480,19 @@ export default function Settings({ navigateTo }) {
             <div className="form-group" style={{ maxWidth: 200 }}>
               <label className="form-label">Default Time</label>
               <input className="form-input" type="time" value={settings.defaultPostTime} onChange={e => update('defaultPostTime', e.target.value)} />
+            </div>
+          </div>
+
+          <div className="card">
+            <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Globe size={16} />Timezone</div>
+            <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 12 }}>All scheduled times and the calendar display in this timezone.</p>
+            <div className="form-group" style={{ maxWidth: 300 }}>
+              <label className="form-label">Your Timezone</label>
+              <select className="form-select" value={settings.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone} onChange={e => update('timezone', e.target.value)}>
+                {Intl.supportedValuesOf('timeZone').map(tz => (
+                  <option key={tz} value={tz}>{tz.replace(/_/g, ' ')}</option>
+                ))}
+              </select>
             </div>
           </div>
 
