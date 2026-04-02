@@ -1,19 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Plus, Trash2, Users, ChevronDown, ChevronUp, Zap, HelpCircle, ExternalLink, AlertTriangle } from 'lucide-react';
 import { getCommunityHealth, daysSinceLastPost } from '../lib/health';
-import { testDiscordWebhook, testLinkedInToken, testRedditConnection } from '../lib/posting';
+import { testDiscordWebhook, testLinkedInToken, testRedditConnection, testTwitterConnection, getTwitterUsage } from '../lib/posting';
 import { UndoToast } from '../components/UxHelpers';
 
 const PLATFORMS = ['Discord', 'Reddit', 'LinkedIn', 'X', 'Facebook', 'Slack', 'Other'];
 
-const CREDENTIAL_FIELDS = {
-  X: [
-    { key: 'apiKey', label: 'API Key', placeholder: 'Twitter API key' },
-    { key: 'apiSecret', label: 'API Secret', placeholder: 'Twitter API secret', type: 'password' },
-    { key: 'accessToken', label: 'Access Token', placeholder: 'OAuth access token' },
-    { key: 'accessTokenSecret', label: 'Access Token Secret', placeholder: 'OAuth access token secret', type: 'password' },
-  ],
-};
+const CREDENTIAL_FIELDS = {};
 
 const BLOCK_DEFS = [
   { key: 'voiceSamples', label: 'Voice/Tone Samples' },
@@ -336,6 +329,135 @@ function RedditSetup({ community, onUpdateCredential }) {
   );
 }
 
+function TwitterSetup({ community, onUpdateCredential }) {
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState(null);
+  const [guideOpen, setGuideOpen] = useState(false);
+  const creds = community.credentials || {};
+  const usage = getTwitterUsage();
+
+  const handleTest = async () => {
+    if (!creds.apiKey || !creds.apiSecret || !creds.accessToken || !creds.accessTokenSecret) {
+      setTestResult({ ok: false, msg: 'Fill in all 4 credential fields first' });
+      return;
+    }
+    setTesting(true);
+    setTestResult(null);
+    try {
+      const result = await testTwitterConnection(creds);
+      setTestResult({ ok: true, msg: `Connected as @${result.username}` });
+    } catch (err) {
+      setTestResult({ ok: false, msg: `Failed — ${err.message}` });
+    }
+    setTesting(false);
+  };
+
+  const usagePct = Math.min(100, (usage.count / 1500) * 100);
+  const usageColor = usagePct > 90 ? 'var(--danger)' : usagePct > 70 ? '#eab308' : 'var(--success)';
+
+  return (
+    <div className="twitter-setup">
+      <div className="form-label" style={{ marginBottom: 10, fontSize: 14, fontWeight: 600, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 6 }}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style={{ color: '#fafafa' }}><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+        Twitter/X Setup
+      </div>
+
+      <div className="twitter-usage-note">
+        Free Twitter API allows 1,500 tweets per month — PostForge tracks your usage.
+      </div>
+
+      {/* Usage counter */}
+      <div className="twitter-usage-bar-section">
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
+          <span style={{ color: 'var(--muted)' }}>Tweets this month</span>
+          <span style={{ color: usageColor, fontWeight: 600 }}>{usage.count} / 1,500</span>
+        </div>
+        <div className="twitter-usage-bar-wrap">
+          <div className="twitter-usage-bar" style={{ width: `${usagePct}%`, background: usageColor }} />
+        </div>
+        {usage.count >= 1350 && (
+          <div style={{ fontSize: 11, color: 'var(--danger)', marginTop: 4 }}>
+            Approaching monthly limit — {1500 - usage.count} tweets remaining.
+          </div>
+        )}
+      </div>
+
+      <div className="form-grid" style={{ marginBottom: 12 }}>
+        <div className="form-group">
+          <label className="form-label">API Key</label>
+          <input
+            className="form-input"
+            placeholder="Your Twitter API key"
+            value={creds.apiKey || ''}
+            onChange={e => onUpdateCredential(community.id, 'apiKey', e.target.value)}
+          />
+        </div>
+        <div className="form-group">
+          <label className="form-label">API Secret</label>
+          <input
+            className="form-input"
+            type="password"
+            placeholder="Your Twitter API secret"
+            value={creds.apiSecret || ''}
+            onChange={e => onUpdateCredential(community.id, 'apiSecret', e.target.value)}
+          />
+        </div>
+        <div className="form-group">
+          <label className="form-label">Access Token</label>
+          <input
+            className="form-input"
+            placeholder="OAuth access token"
+            value={creds.accessToken || ''}
+            onChange={e => onUpdateCredential(community.id, 'accessToken', e.target.value)}
+          />
+        </div>
+        <div className="form-group">
+          <label className="form-label">Access Token Secret</label>
+          <input
+            className="form-input"
+            type="password"
+            placeholder="OAuth access token secret"
+            value={creds.accessTokenSecret || ''}
+            onChange={e => onUpdateCredential(community.id, 'accessTokenSecret', e.target.value)}
+          />
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12 }}>
+        <button className="btn btn-primary btn-sm" onClick={handleTest} disabled={testing}>
+          {testing ? <span className="spinner" /> : <Zap size={14} />}
+          {testing ? 'Testing...' : 'Test Connection'}
+        </button>
+        {testResult && (
+          <span style={{ fontSize: 13, fontWeight: 500, color: testResult.ok ? 'var(--success)' : 'var(--danger)' }}>
+            {testResult.msg}
+          </span>
+        )}
+      </div>
+
+      <button className="discord-guide-toggle" onClick={() => setGuideOpen(!guideOpen)}>
+        <HelpCircle size={14} />
+        {guideOpen ? 'Hide setup guide' : 'How to get your Twitter API keys'}
+        {guideOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+      </button>
+
+      {guideOpen && (
+        <div className="twitter-guide">
+          <ol>
+            <li>Go to <a href="https://developer.twitter.com/en/portal/dashboard" target="_blank" rel="noopener noreferrer">developer.twitter.com</a></li>
+            <li>Create a new project and app (free account works)</li>
+            <li>Under <strong>"User authentication settings"</strong> enable <strong>OAuth 1.0a</strong></li>
+            <li>Set permissions to <strong>"Read and Write"</strong></li>
+            <li>Go to <strong>"Keys and Tokens"</strong> tab</li>
+            <li>Generate your <strong>Access Token</strong> and <strong>Secret</strong></li>
+            <li>Copy all 4 values and paste them here</li>
+          </ol>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Communities() {
   const [communities, setCommunities] = useState([]);
   const [name, setName] = useState('');
@@ -447,6 +569,7 @@ export default function Communities() {
               const isDiscord = c.platform === 'Discord';
               const isLinkedIn = c.platform === 'LinkedIn';
               const isReddit = c.platform === 'Reddit';
+              const isTwitter = c.platform === 'X';
               return (
                 <div key={c.id} className="community-card">
                   <div className="community-item" style={{ borderRadius: isExpanded ? '8px 8px 0 0' : undefined }}>
@@ -507,8 +630,15 @@ export default function Communities() {
                         </div>
                       )}
 
+                      {/* Twitter/X-specific setup */}
+                      {isTwitter && (
+                        <div style={{ marginBottom: 20 }}>
+                          <TwitterSetup community={c} onUpdateCredential={updateCredential} />
+                        </div>
+                      )}
+
                       {/* Other platform credential fields */}
-                      {!isDiscord && !isLinkedIn && !isReddit && fields.length > 0 && (
+                      {!isDiscord && !isLinkedIn && !isReddit && !isTwitter && fields.length > 0 && (
                         <div className="form-grid" style={{ marginBottom: 20 }}>
                           {fields.map(f => (
                             <div className="form-group" key={f.key}>

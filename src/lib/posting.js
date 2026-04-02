@@ -208,10 +208,46 @@ export async function testRedditConnection(appId, appSecret, username, password)
 }
 
 /**
+ * Get Twitter/X usage count for current month.
+ */
+function getTwitterUsage() {
+  const data = JSON.parse(localStorage.getItem('postforge_twitter_usage') || '{}');
+  const currentMonth = new Date().toISOString().slice(0, 7);
+  if (data.month !== currentMonth) return { month: currentMonth, count: 0 };
+  return data;
+}
+
+function incrementTwitterUsage() {
+  const usage = getTwitterUsage();
+  usage.count += 1;
+  localStorage.setItem('postforge_twitter_usage', JSON.stringify(usage));
+  return usage;
+}
+
+export { getTwitterUsage };
+
+/**
  * Post to Twitter/X using OAuth 1.0a (v2 tweet endpoint).
+ * Auto-truncates to 280 chars with "..." if needed.
+ * Tracks monthly usage. Handles duplicate content errors.
  */
 export async function postToTwitter(credentials, content) {
   const { apiKey, apiSecret, accessToken, accessTokenSecret } = credentials;
+  if (!apiKey || !apiSecret || !accessToken || !accessTokenSecret) {
+    throw new Error('Twitter API credentials incomplete — provide all 4 keys');
+  }
+
+  // Check usage limit
+  const usage = getTwitterUsage();
+  if (usage.count >= 1500) {
+    throw new Error('Monthly tweet limit reached (1,500/month on free tier). Resets next month.');
+  }
+
+  // Truncate to 280 chars
+  let text = content;
+  if (text.length > 280) {
+    text = text.slice(0, 277) + '...';
+  }
 
   // OAuth 1.0a signature generation
   const oauthParams = {
@@ -249,13 +285,72 @@ export async function postToTwitter(credentials, content) {
       Authorization: authHeader,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ text: content.slice(0, 280) }),
+    body: JSON.stringify({ text }),
   });
+
   if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    throw new Error(`Twitter post failed (${res.status}): ${text}`);
+    const body = await res.text().catch(() => '');
+    if (res.status === 403 && body.toLowerCase().includes('duplicate')) {
+      throw new Error('Twitter rejected this tweet — duplicate content. Try changing the wording.');
+    }
+    if (res.status === 401) {
+      throw new Error('Twitter auth failed — check your API keys and tokens');
+    }
+    if (res.status === 429) {
+      throw new Error('Twitter rate limit hit — wait a few minutes and try again');
+    }
+    throw new Error(`Twitter post failed (${res.status}): ${body}`);
   }
+
+  incrementTwitterUsage();
   return { success: true, platform: 'Twitter/X' };
+}
+
+/**
+ * Test Twitter credentials by verifying with the users/me endpoint.
+ */
+export async function testTwitterConnection(credentials) {
+  const { apiKey, apiSecret, accessToken, accessTokenSecret } = credentials;
+  if (!apiKey || !apiSecret || !accessToken || !accessTokenSecret) {
+    throw new Error('Fill in all 4 credential fields first');
+  }
+
+  const oauthParams = {
+    oauth_consumer_key: apiKey,
+    oauth_nonce: generateNonce(),
+    oauth_signature_method: 'HMAC-SHA1',
+    oauth_timestamp: Math.floor(Date.now() / 1000).toString(),
+    oauth_token: accessToken,
+    oauth_version: '1.0',
+  };
+
+  const method = 'GET';
+  const url = 'https://api.twitter.com/2/users/me';
+
+  const paramString = Object.keys(oauthParams)
+    .sort()
+    .map(k => `${encodeRFC3986(k)}=${encodeRFC3986(oauthParams[k])}`)
+    .join('&');
+
+  const sigBase = `${method}&${encodeRFC3986(url)}&${encodeRFC3986(paramString)}`;
+  const sigKey = `${encodeRFC3986(apiSecret)}&${encodeRFC3986(accessTokenSecret)}`;
+  const signature = await hmacSha1(sigKey, sigBase);
+  oauthParams.oauth_signature = signature;
+
+  const authHeader = 'OAuth ' + Object.keys(oauthParams)
+    .sort()
+    .map(k => `${encodeRFC3986(k)}="${encodeRFC3986(oauthParams[k])}"`)
+    .join(', ');
+
+  const res = await fetch(url, { headers: { Authorization: authHeader } });
+  if (res.status === 401) {
+    throw new Error('Invalid credentials — check your keys and tokens');
+  }
+  if (!res.ok) {
+    throw new Error(`Twitter API error (${res.status})`);
+  }
+  const data = await res.json();
+  return { success: true, username: data.data?.username || 'verified' };
 }
 
 function generateNonce() {
