@@ -1444,6 +1444,141 @@ body {
   color: #5865f2;
 }
 
+/* ===== Recurring Templates ===== */
+.rt-form {
+  padding: 16px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin-bottom: 16px;
+}
+
+.rt-comm-chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.rt-comm-chip {
+  padding: 5px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+  font-family: inherit;
+  display: flex;
+  align-items: center;
+  transition: all 0.15s;
+}
+
+.rt-comm-chip:hover {
+  border-color: var(--muted);
+}
+
+.rt-comm-active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(99, 102, 241, 0.08);
+}
+
+.rt-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.rt-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 20px;
+}
+
+.rt-card-inactive {
+  opacity: 0.5;
+}
+
+.rt-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 8px;
+}
+
+.rt-card-name {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.rt-card-schedule {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.rt-next-run {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+  background: rgba(99, 102, 241, 0.1);
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.rt-card-context {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 8px;
+  font-style: italic;
+}
+
+.rt-card-comms {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.rt-card-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.rt-history {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.rt-history-entry {
+  padding: 8px 10px;
+  background: var(--bg);
+  border-radius: 6px;
+}
+
+.rt-history-date {
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+
+.rt-history-post {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
 /* ===== Post Queue ===== */
 .pq-controls {
   display: flex;

@@ -5,6 +5,7 @@ import { postToPlatform } from '../lib/posting';
 import { getSafetyLog } from '../lib/safety';
 import OptimalTiming from '../components/OptimalTiming';
 import PostQueue from '../components/PostQueue';
+import RecurringTemplates from '../components/RecurringTemplates';
 
 const MODES = [
   { id: 'instant', label: 'Instant Mode', icon: Zap, desc: 'Send now to all enabled communities' },
@@ -425,6 +426,13 @@ export default function Automation() {
       {/* View tabs */}
       <div className="tab-bar">
         <button className={`tab-btn ${view === 'modes' ? 'tab-active' : ''}`} onClick={() => setView('modes')}>Automation Modes</button>
+        <button className={`tab-btn ${view === 'templates' ? 'tab-active' : ''}`} onClick={() => setView('templates')}>
+          Templates
+          {(() => {
+            const tLen = JSON.parse(localStorage.getItem('postforge_templates') || '[]').filter(t => t.active).length;
+            return tLen > 0 ? <span className="tab-count">{tLen}</span> : null;
+          })()}
+        </button>
         <button className={`tab-btn ${view === 'queue' ? 'tab-active' : ''}`} onClick={() => setView('queue')}>
           Post Queue
           {(() => {
@@ -435,6 +443,7 @@ export default function Automation() {
       </div>
 
       {view === 'queue' && <PostQueue />}
+      {view === 'templates' && <RecurringTemplates />}
 
       {view === 'modes' && <>
       {/* Mode selector */}
