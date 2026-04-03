@@ -2863,6 +2863,100 @@ body {
   color: var(--accent);
 }
 
+/* ===== Phase Manager ===== */
+.pm-progress {
+  margin: 8px 0;
+}
+
+.pm-progress-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.pm-phase-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 10px;
+  border-radius: 6px;
+  background: rgba(99, 102, 241, 0.12);
+  color: var(--accent);
+}
+
+.pm-progress-bars {
+  display: flex;
+  gap: 4px;
+}
+
+.pm-progress-segment {
+  flex: 3;
+}
+
+.pm-seg-wide {
+  flex: 5;
+}
+
+.pm-progress-label {
+  font-size: 9px;
+  color: var(--muted);
+  margin-bottom: 3px;
+  text-align: center;
+}
+
+.pm-progress-track {
+  height: 6px;
+  background: var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.pm-progress-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.4s;
+}
+
+.pm-fill-1 { background: #818cf8; }
+.pm-fill-2 { background: var(--accent); }
+.pm-fill-3 { background: var(--success); }
+
+/* Campaign Report */
+.pm-report {
+  padding: 12px;
+  background: rgba(99, 102, 241, 0.04);
+  border: 1px solid rgba(99, 102, 241, 0.12);
+  border-radius: 8px;
+}
+
+.pm-report-stats {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.pm-report-stat {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.pm-report-stat strong {
+  color: var(--text);
+}
+
+.pm-report-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+
+.pm-report-row:last-child {
+  border-bottom: none;
+}
+
 /* ===== Campaign Optimizer ===== */
 .co-container {
   padding: 4px 0;

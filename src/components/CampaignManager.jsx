@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Plus, Play, Pause, Square, Trash2, ChevronDown, ChevronUp, Check, Zap } from 'lucide-react';
 import { generatePost, resolveActiveBlocks } from '../lib/generatePost';
 import CampaignOptimizer from './CampaignOptimizer';
+import { PhaseProgressBar, CampaignReportCard, getPhaseInfo } from './PhaseManager';
 
 function getCampaigns() { return JSON.parse(localStorage.getItem('postforge_campaigns') || '[]'); }
 function saveCampaigns(c) { localStorage.setItem('postforge_campaigns', JSON.stringify(c)); }
@@ -64,7 +65,7 @@ function generateSchedule(form, communities, products) {
   return schedule;
 }
 
-const EMPTY_FORM = { name: '', startDate: '', endDate: '', productIds: [], communityIds: [], goal: 'Brand awareness', frequency: 'daily', customDays: 2 };
+const EMPTY_FORM = { name: '', startDate: '', endDate: '', productIds: [], communityIds: [], goal: 'Brand awareness', frequency: 'daily', customDays: 2, smartPhases: false };
 
 export default function CampaignManager() {
   const [campaigns, setCampaigns] = useState([]);
@@ -113,6 +114,7 @@ export default function CampaignManager() {
       communityIds: form.communityIds,
       posts: postsWithContent,
       status: 'active',
+      smartPhases: form.smartPhases,
       createdAt: new Date().toISOString(),
     };
 
@@ -245,6 +247,15 @@ export default function CampaignManager() {
                   ))}
                 </div>
               </div>
+              <div className="form-group full-width">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div className="toggle-wrapper" onClick={() => updateForm('smartPhases', !form.smartPhases)} style={{ marginLeft: 0 }}>
+                    <div className={`toggle ${form.smartPhases ? 'toggle-on' : ''}`}><div className="toggle-knob" /></div>
+                    <span className="toggle-label">Smart Phases</span>
+                  </div>
+                  <span style={{ fontSize: 11, color: 'var(--muted)' }}>Auto-adapt strategy: Discovery → Optimization → Amplification</span>
+                </div>
+              </div>
             </div>
             <div style={{ marginTop: 12, display: 'flex', gap: 6 }}>
               <button className="btn btn-secondary btn-sm" onClick={handlePreview} disabled={!form.name.trim() || !form.startDate || !form.endDate || form.productIds.length === 0 || form.communityIds.length === 0}>
@@ -299,11 +310,16 @@ export default function CampaignManager() {
                   </div>
                 </div>
 
-                <div className="cm-progress-row">
-                  <span style={{ fontSize: 12, color: 'var(--muted)' }}>{progress}% elapsed</span>
-                  <span style={{ fontSize: 12, color: 'var(--muted)' }}>{sent}/{total} posts sent</span>
-                </div>
-                <div className="goal-bar-wrap"><div className="goal-bar" style={{ width: `${progress}%`, background: progress >= 100 ? 'var(--success)' : 'var(--accent)' }} /></div>
+                {c.smartPhases && <PhaseProgressBar campaign={c} />}
+                {!c.smartPhases && (
+                  <>
+                    <div className="cm-progress-row">
+                      <span style={{ fontSize: 12, color: 'var(--muted)' }}>{progress}% elapsed</span>
+                      <span style={{ fontSize: 12, color: 'var(--muted)' }}>{sent}/{total} posts sent</span>
+                    </div>
+                    <div className="goal-bar-wrap"><div className="goal-bar" style={{ width: `${progress}%`, background: progress >= 100 ? 'var(--success)' : 'var(--accent)' }} /></div>
+                  </>
+                )}
 
                 <div className="cm-card-actions">
                   <button className="btn btn-secondary btn-sm" onClick={() => handlePause(c.id)}>
@@ -364,16 +380,18 @@ export default function CampaignManager() {
           <div className="card-title">Campaign History</div>
           <div className="cm-history">
             {completedCampaigns.map(c => (
-              <div key={c.id} className="cm-history-item">
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 600 }}>{c.name}</div>
-                  <div style={{ fontSize: 11, color: 'var(--muted)' }}>{formatDate(c.startDate)} — {formatDate(c.endDate)} · {c.goal}</div>
+              <div key={c.id} className="cm-history-item" style={{ flexDirection: 'column', gap: 8 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600 }}>{c.name} {c.smartPhases && <span style={{ fontSize: 10, color: 'var(--accent)' }}>Smart Phases</span>}</div>
+                    <div style={{ fontSize: 11, color: 'var(--muted)' }}>{formatDate(c.startDate)} — {formatDate(c.endDate)} · {c.goal}</div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                    <span style={{ fontSize: 12, color: 'var(--muted)' }}>{(c.posts || []).length} posts</span>
+                    <button className="btn btn-danger btn-sm" style={{ padding: '2px 6px' }} onClick={() => handleDelete(c.id)}><Trash2 size={11} /></button>
+                  </div>
                 </div>
-                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                  <span style={{ fontSize: 12, color: 'var(--muted)' }}>{(c.posts || []).length} posts</span>
-                  <span style={{ fontSize: 12, color: 'var(--muted)' }}>{c.communityIds.length} communities</span>
-                  <button className="btn btn-danger btn-sm" style={{ padding: '2px 6px' }} onClick={() => handleDelete(c.id)}><Trash2 size={11} /></button>
-                </div>
+                {c.smartPhases && <CampaignReportCard campaign={c} />}
               </div>
             ))}
           </div>
