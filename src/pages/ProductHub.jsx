@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Save, Plus, Trash2, Package, Power, BarChart2 } from 'lucide-react';
+import { Save, Plus, Trash2, Package, Power, BarChart2, Search, X, ChevronDown } from 'lucide-react';
 import { generatePost, resolveActiveBlocks } from '../lib/generatePost';
 import { postToPlatform } from '../lib/posting';
 import { UndoToast } from '../components/UxHelpers';
@@ -13,7 +13,19 @@ const EMPTY_PRODUCT = {
   price: '',
   gumroadLink: '',
   version: '',
+  tags: [],
+  category: 'Other',
+  status: 'Active Development',
 };
+
+const CATEGORIES = ['Tools', 'Games', 'Content', 'Services', 'Templates', 'Other'];
+const STATUSES = ['Active Development', 'Launched', 'Paused', 'Archived'];
+const SORT_OPTIONS = [
+  { value: 'recent', label: 'Recently updated' },
+  { value: 'name', label: 'Name A-Z' },
+  { value: 'posts', label: 'Most posts' },
+  { value: 'oldest', label: 'Oldest' },
+];
 
 function getProducts() {
   return JSON.parse(localStorage.getItem('postforge_products') || '[]');
@@ -21,6 +33,11 @@ function getProducts() {
 
 function saveProducts(products) {
   localStorage.setItem('postforge_products', JSON.stringify(products));
+}
+
+function getPostCountForProduct(name) {
+  const log = JSON.parse(localStorage.getItem('postforge_post_log') || '[]');
+  return log.filter(l => l.productName === name).length;
 }
 
 function getAllCommunities() {
@@ -48,6 +65,12 @@ export default function ProductHub() {
   const [saved, setSaved] = useState(false);
   const [undoProduct, setUndoProduct] = useState(null);
   const [analyticsProduct, setAnalyticsProduct] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterCategory, setFilterCategory] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
+  const [sortBy, setSortBy] = useState('recent');
+  const [tagInput, setTagInput] = useState('');
+  const [archiveConfirm, setArchiveConfirm] = useState(null);
   const scheduleTimerRef = useRef(null);
 
   useEffect(() => {
@@ -140,7 +163,7 @@ export default function ProductHub() {
 
   const handleSaveAsNew = () => {
     const id = String(Date.now());
-    const entry = { ...product, id, blocks: null, activated: false, scheduleTime: '10:00' };
+    const entry = { ...product, id, blocks: null, activated: false, scheduleTime: '10:00', createdAt: new Date().toISOString() };
     const updated = [...getProducts(), entry];
     saveProducts(updated);
     setProducts(updated);
@@ -195,6 +218,38 @@ export default function ProductHub() {
     });
     saveProducts(updated);
     setProducts(updated);
+  };
+
+  const handleAddTag = () => {
+    const tag = tagInput.trim().toLowerCase();
+    if (!tag || (product.tags || []).includes(tag)) { setTagInput(''); return; }
+    update('tags', [...(product.tags || []), tag]);
+    setTagInput('');
+  };
+
+  const handleRemoveTag = (tag) => {
+    update('tags', (product.tags || []).filter(t => t !== tag));
+  };
+
+  const handleSetStatus = (id, status) => {
+    if (status === 'Archived') {
+      const p = products.find(pr => pr.id === id);
+      if (p?.activated) {
+        setArchiveConfirm(id);
+        return;
+      }
+    }
+    const updated = getProducts().map(p => p.id === id ? { ...p, status } : p);
+    saveProducts(updated);
+    setProducts(updated);
+  };
+
+  const handleConfirmArchive = () => {
+    if (!archiveConfirm) return;
+    const updated = getProducts().map(p => p.id === archiveConfirm ? { ...p, status: 'Archived', activated: false } : p);
+    saveProducts(updated);
+    setProducts(updated);
+    setArchiveConfirm(null);
   };
 
   const handleScheduleTimeChange = (id, time) => {
@@ -252,6 +307,32 @@ export default function ProductHub() {
               <label className="form-label">Version</label>
               <input className="form-input" placeholder="e.g. 1.0.0" value={product.version} onChange={e => update('version', e.target.value)} />
             </div>
+            <div className="form-group">
+              <label className="form-label">Category</label>
+              <select className="form-select" value={product.category || 'Other'} onChange={e => update('category', e.target.value)}>
+                {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Status</label>
+              <select className="form-select" value={product.status || 'Active Development'} onChange={e => update('status', e.target.value)}>
+                {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+            <div className="form-group full-width">
+              <label className="form-label">Tags</label>
+              <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
+                <input className="form-input" style={{ flex: 1, padding: '6px 10px', fontSize: 13 }} placeholder="Add a tag and press Enter..." value={tagInput} onChange={e => setTagInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddTag(); }}} />
+                <button className="btn btn-secondary btn-sm" onClick={handleAddTag}>Add</button>
+              </div>
+              {(product.tags || []).length > 0 && (
+                <div className="pl-tags">
+                  {product.tags.map(t => (
+                    <span key={t} className="pl-tag">{t}<button className="pl-tag-x" onClick={() => handleRemoveTag(t)}><X size={10} /></button></span>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           <div style={{ marginTop: 20, display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -271,68 +352,134 @@ export default function ProductHub() {
       )}
 
       {/* ===== My Products Tab ===== */}
-      {tab === 'library' && (
+      {tab === 'library' && (() => {
+        const activeProducts = products.filter(p => (p.status || 'Active Development') !== 'Archived');
+        const archivedProducts = products.filter(p => p.status === 'Archived');
+
+        // Filter
+        let filtered = activeProducts;
+        if (searchQuery) {
+          const q = searchQuery.toLowerCase();
+          filtered = filtered.filter(p => (p.name || '').toLowerCase().includes(q) || (p.tags || []).some(t => t.includes(q)));
+        }
+        if (filterCategory) filtered = filtered.filter(p => (p.category || 'Other') === filterCategory);
+        if (filterStatus) filtered = filtered.filter(p => (p.status || 'Active Development') === filterStatus);
+
+        // Sort
+        if (sortBy === 'name') filtered.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+        else if (sortBy === 'posts') filtered.sort((a, b) => getPostCountForProduct(b.name) - getPostCountForProduct(a.name));
+        else if (sortBy === 'oldest') filtered.sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''));
+        else filtered.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+
+        // Stats
+        const totalCount = products.length;
+        const activeDevCount = products.filter(p => (p.status || 'Active Development') === 'Active Development').length;
+        const launchedCount = products.filter(p => p.status === 'Launched').length;
+        const archivedCount = archivedProducts.length;
+
+        const renderCard = (p) => {
+          const isLoaded = activeProductId === p.id;
+          const isActivated = p.activated || false;
+          const isArchived = p.status === 'Archived';
+          const statusColors = { 'Active Development': 'var(--success)', 'Launched': 'var(--accent)', 'Paused': '#eab308', 'Archived': 'var(--muted)' };
+          return (
+            <div key={p.id} className={`product-card ${isLoaded ? 'product-card-active' : ''} ${isArchived ? 'product-card-archived' : ''}`}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 6 }}>
+                <div className="product-card-name">{p.name || 'Untitled Product'}</div>
+                <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+                  {isActivated && <span className="product-activated-badge">Active</span>}
+                  <span className="pl-status-badge" style={{ background: (statusColors[p.status] || 'var(--muted)') + '18', color: statusColors[p.status] || 'var(--muted)' }}>{p.status || 'Active Development'}</span>
+                </div>
+              </div>
+              {p.tagline && <div className="product-card-tagline">{p.tagline}</div>}
+              <div className="product-card-meta">
+                {p.price && <span className="product-card-chip">{p.price}</span>}
+                {p.version && <span className="product-card-chip">v{p.version}</span>}
+                {p.category && p.category !== 'Other' && <span className="product-card-chip">{p.category}</span>}
+              </div>
+              {(p.tags || []).length > 0 && (
+                <div className="pl-tags" style={{ marginTop: 4 }}>
+                  {p.tags.map(t => <span key={t} className="pl-tag-sm">{t}</span>)}
+                </div>
+              )}
+              {isActivated && (
+                <div className="product-schedule-row">
+                  <span className="product-schedule-label">Posts daily at</span>
+                  <input className="form-input" type="time" value={p.scheduleTime || '10:00'} onChange={e => handleScheduleTimeChange(p.id, e.target.value)} style={{ padding: '6px 10px', fontSize: 13, width: 110 }} />
+                </div>
+              )}
+              <div className="product-card-actions">
+                <button className="btn btn-primary btn-sm" onClick={() => handleLoad(p)}>Load</button>
+                <button className="btn btn-secondary btn-sm" onClick={() => setAnalyticsProduct(p)}><BarChart2 size={13} /> Analytics</button>
+                {!isArchived && (
+                  <button className={`btn btn-sm ${isActivated ? 'btn-activate-on' : 'btn-activate-off'}`} onClick={() => handleToggleActivate(p.id)}>
+                    <Power size={14} /> {isActivated ? 'Deactivate' : 'Activate'}
+                  </button>
+                )}
+                <select className="pl-status-select" value={p.status || 'Active Development'} onChange={e => handleSetStatus(p.id, e.target.value)}>
+                  {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+                <button className="btn btn-danger btn-sm" onClick={() => handleDeleteProduct(p.id)}><Trash2 size={14} /></button>
+              </div>
+            </div>
+          );
+        };
+
+        return (
         <>
           {products.length > 0 ? (
-            <div className="product-grid">
-              {products.map(p => {
-                const isLoaded = activeProductId === p.id;
-                const isActivated = p.activated || false;
-                return (
-                  <div
-                    key={p.id}
-                    className={`product-card ${isLoaded ? 'product-card-active' : ''}`}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <div className="product-card-name">{p.name || 'Untitled Product'}</div>
-                      {isActivated && (
-                        <span className="product-activated-badge">Active</span>
-                      )}
-                    </div>
-                    {p.tagline && <div className="product-card-tagline">{p.tagline}</div>}
-                    <div className="product-card-meta">
-                      {p.price && <span className="product-card-chip">{p.price}</span>}
-                      {p.version && <span className="product-card-chip">v{p.version}</span>}
-                    </div>
+            <>
+              {/* Quick Stats */}
+              <div className="pl-quick-stats">
+                <span className="pl-stat-badge">{totalCount} Total</span>
+                <span className="pl-stat-badge pl-stat-active">{activeDevCount} Active Dev</span>
+                <span className="pl-stat-badge pl-stat-launched">{launchedCount} Launched</span>
+                {archivedCount > 0 && <span className="pl-stat-badge pl-stat-archived">{archivedCount} Archived</span>}
+              </div>
 
-                    {isActivated && (
-                      <div className="product-schedule-row">
-                        <span className="product-schedule-label">Posts daily at</span>
-                        <input
-                          className="form-input"
-                          type="time"
-                          value={p.scheduleTime || '10:00'}
-                          onChange={e => handleScheduleTimeChange(p.id, e.target.value)}
-                          style={{ padding: '6px 10px', fontSize: 13, width: 110 }}
-                        />
-                      </div>
-                    )}
+              {/* Search + Filters */}
+              <div className="pl-toolbar">
+                <div className="pl-search">
+                  <Search size={14} />
+                  <input className="pl-search-input" placeholder="Search by name or tag..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+                  {searchQuery && <button className="pl-search-clear" onClick={() => setSearchQuery('')}><X size={12} /></button>}
+                </div>
+                <div className="pl-filters">
+                  <select className="pl-filter-select" value={filterCategory} onChange={e => setFilterCategory(e.target.value)}>
+                    <option value="">All Categories</option>
+                    {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                  <select className="pl-filter-select" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
+                    <option value="">All Statuses</option>
+                    {STATUSES.filter(s => s !== 'Archived').map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                  <select className="pl-filter-select" value={sortBy} onChange={e => setSortBy(e.target.value)}>
+                    {SORT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </select>
+                </div>
+              </div>
 
-                    <div className="product-card-actions">
-                      <button className="btn btn-primary btn-sm" onClick={() => handleLoad(p)}>
-                        Load
-                      </button>
-                      <button className="btn btn-secondary btn-sm" onClick={() => setAnalyticsProduct(p)}>
-                        <BarChart2 size={13} /> Analytics
-                      </button>
-                      <button
-                        className={`btn btn-sm ${isActivated ? 'btn-activate-on' : 'btn-activate-off'}`}
-                        onClick={() => handleToggleActivate(p.id)}
-                      >
-                        <Power size={14} />
-                        {isActivated ? 'Deactivate' : 'Activate'}
-                      </button>
-                      <button
-                        className="btn btn-danger btn-sm"
-                        onClick={() => handleDeleteProduct(p.id)}
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
+              {/* Products grid */}
+              {filtered.length > 0 ? (
+                <div className="product-grid">
+                  {filtered.map(renderCard)}
+                </div>
+              ) : (
+                <div className="empty-state" style={{ padding: 24 }}>
+                  <p style={{ fontSize: 14, color: 'var(--muted)' }}>No products match your search or filters.</p>
+                </div>
+              )}
+
+              {/* Archived section */}
+              {archivedProducts.length > 0 && (
+                <div style={{ marginTop: 24 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--muted)', marginBottom: 10 }}>Archived ({archivedProducts.length})</div>
+                  <div className="product-grid">
+                    {archivedProducts.map(renderCard)}
                   </div>
-                );
-              })}
-            </div>
+                </div>
+              )}
+            </>
           ) : (
             <div className="empty-state">
               <Package size={48} strokeWidth={1} style={{ opacity: 0.3, marginBottom: 12 }} />
@@ -342,6 +489,23 @@ export default function ProductHub() {
             </div>
           )}
         </>
+        );
+      })()}
+
+      {/* Archive confirmation */}
+      {archiveConfirm && (
+        <div className="pq-modal-overlay" onClick={() => setArchiveConfirm(null)}>
+          <div className="pq-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 400 }}>
+            <div style={{ fontWeight: 600, marginBottom: 12 }}>Archive Product?</div>
+            <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 16 }}>
+              This will stop all scheduled posts for <strong>{products.find(p => p.id === archiveConfirm)?.name || 'this product'}</strong>. Continue?
+            </p>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button className="btn btn-secondary btn-sm" onClick={() => setArchiveConfirm(null)}>Cancel</button>
+              <button className="btn btn-danger btn-sm" onClick={handleConfirmArchive}>Archive & Deactivate</button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* ===== My Voice Tab ===== */}
