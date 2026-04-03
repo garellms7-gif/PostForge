@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Sparkles, Users, Package, Clock, Hammer, Send, BarChart2, Settings as SettingsIcon, AlertCircle, X } from 'lucide-react';
+import { Sparkles, Users, Package, Clock, Hammer, Send, BarChart2, Calendar, Settings as SettingsIcon, AlertCircle, X } from 'lucide-react';
 import Dashboard from './pages/Dashboard';
 import Generator from './pages/Generator';
 import Communities from './pages/Communities';
 import ProductHub from './pages/ProductHub';
 import History from './pages/History';
 import Automation from './pages/Automation';
+import ContentCalendar from './pages/ContentCalendar';
 import Settings from './pages/Settings';
 
 const PAGE_COMPONENTS = {
@@ -14,6 +15,7 @@ const PAGE_COMPONENTS = {
   communities: Communities,
   product: ProductHub,
   automation: Automation,
+  calendar: ContentCalendar,
   history: History,
   settings: Settings,
 };
@@ -24,6 +26,7 @@ const NAV_ITEMS = [
   { id: 'communities', label: 'Communities', icon: Users },
   { id: 'product', label: 'Product Hub', icon: Package },
   { id: 'automation', label: 'Automation', icon: Send },
+  { id: 'calendar', label: 'Calendar', icon: Calendar },
   { id: 'history', label: 'History', icon: Clock },
   { id: 'settings', label: 'Settings', icon: SettingsIcon },
 ];
