@@ -3,6 +3,7 @@ import { Send, Zap, Clock, CheckSquare, Brain, Rocket, Check, X, Trash2, Timer, 
 import { generatePost, resolveActiveBlocks, TONES, POST_TYPES } from '../lib/generatePost';
 import { postToPlatform } from '../lib/posting';
 import { getSafetyLog } from '../lib/safety';
+import { getFreshnessLog } from '../lib/freshness';
 import OptimalTiming from '../components/OptimalTiming';
 import PostQueue from '../components/PostQueue';
 import RecurringTemplates from '../components/RecurringTemplates';
@@ -93,6 +94,7 @@ export default function Automation() {
 
   // Safety log state
   const [safetyLog, setSafetyLog] = useState([]);
+  const [freshnessLog, setFreshnessLog] = useState([]);
 
   // Recycler state
   const [recycleEnabled, setRecycleEnabled] = useState(false);
@@ -128,6 +130,7 @@ export default function Automation() {
       setSmartActive(s.active || false);
     }
     setSafetyLog(getSafetyLog());
+    setFreshnessLog(getFreshnessLog());
     // Recycler settings
     const savedRecycler = localStorage.getItem('postforge_recycler');
     if (savedRecycler) {
@@ -830,6 +833,30 @@ export default function Automation() {
           </>
         )}
       </div>
+      {/* Freshness Report */}
+      {freshnessLog.length > 0 && (
+        <div className="card">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <div className="card-title" style={{ marginBottom: 0 }}>Freshness Report</div>
+            <button className="btn btn-danger btn-sm" onClick={() => { localStorage.removeItem('postforge_freshness_log'); setFreshnessLog([]); }}>
+              <Trash2 size={12} /> Clear
+            </button>
+          </div>
+          <div className="fg-log">
+            {freshnessLog.slice(0, 20).map(entry => (
+              <div key={entry.id} className={`fg-log-item fg-log-${entry.type === 'duplicate' ? 'blocked' : 'adjusted'}`}>
+                <div className="fg-log-type">{entry.type === 'duplicate' ? 'Duplicate' : entry.type === 'opening' ? 'Opening' : entry.type === 'phrase_fatigue' ? 'Phrase' : 'Topic'}</div>
+                <div className="fg-log-msg">{entry.message}</div>
+                <div className="fg-log-meta">
+                  {entry.community && <span style={{ fontSize: 11, color: 'var(--muted)' }}>{entry.community}</span>}
+                  <span style={{ fontSize: 10, color: 'var(--muted)' }}>{new Date(entry.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Safety Log */}
       <div className="card">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>

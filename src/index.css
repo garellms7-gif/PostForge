@@ -2597,6 +2597,109 @@ body {
   white-space: pre-wrap;
 }
 
+/* ===== Freshness Guard ===== */
+.fg-log {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.fg-log-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.fg-log-blocked {
+  background: rgba(239, 68, 68, 0.04);
+  border: 1px solid rgba(239, 68, 68, 0.15);
+}
+
+.fg-log-adjusted {
+  background: rgba(234, 179, 8, 0.04);
+  border: 1px solid rgba(234, 179, 8, 0.12);
+}
+
+.fg-log-type {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--accent);
+  background: rgba(99, 102, 241, 0.1);
+  padding: 1px 6px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  text-transform: uppercase;
+}
+
+.fg-log-msg {
+  color: var(--text);
+  line-height: 1.4;
+  flex: 1;
+}
+
+.fg-log-meta {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/* Topic distribution bar */
+.fg-topic-bar {
+  display: flex;
+  height: 10px;
+  border-radius: 5px;
+  overflow: hidden;
+  gap: 1px;
+}
+
+.fg-topic-seg {
+  min-width: 4px;
+  transition: flex 0.3s;
+}
+
+.fg-topic-legend {
+  display: flex;
+  gap: 10px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+
+.fg-topic-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  color: var(--muted);
+}
+
+/* Fatigued phrases */
+.fg-phrase-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.fg-phrase-tag {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 8px;
+  background: rgba(239, 68, 68, 0.06);
+  color: var(--danger);
+  border: 1px solid rgba(239, 68, 68, 0.15);
+}
+
+.fg-phrase-count {
+  font-weight: 700;
+  opacity: 0.7;
+  margin-left: 2px;
+}
+
 /* Style Profile card in Rankings */
 .cr-style-card {
   padding: 14px;

@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { Trophy, TrendingUp, TrendingDown, Minus, ChevronDown, ChevronUp, Clock, Calendar, Sparkles } from 'lucide-react';
 import { calculateRawScore } from '../lib/scoring';
 import { buildCommunityStyleProfile } from '../lib/styleDNA';
+import { getFatiguedPhrases, getTopicDistribution } from '../lib/freshness';
 
 function getHistory() { return JSON.parse(localStorage.getItem('postforge_history') || '[]'); }
 function getEngagement() { return JSON.parse(localStorage.getItem('postforge_engagement') || '{}'); }
@@ -123,6 +124,10 @@ export default function CommunityRankings({ community }) {
   const best = data.ranked[0];
   const worst = data.ranked.filter(r => r.count > 0).slice(-1)[0];
   const styleProfile = buildCommunityStyleProfile(community.name);
+  const fatiguedPhrases = getFatiguedPhrases(community.name);
+  const topicDist = getTopicDistribution(community.name);
+  const topicTotal = topicDist.reduce((s, t) => s + t.count, 0);
+  const TOPIC_COLORS = ['var(--accent)', 'var(--success)', '#eab308', 'var(--danger)', '#a855f7', 'var(--muted)'];
 
   return (
     <div className="cr-container">
@@ -213,6 +218,38 @@ export default function CommunityRankings({ community }) {
           );
         })}
       </div>
+
+      {/* Topic Distribution */}
+      {topicDist.length > 0 && (
+        <div style={{ marginTop: 14 }}>
+          <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8 }}>Topic Distribution (2 weeks)</div>
+          <div className="fg-topic-bar">
+            {topicDist.map((t, i) => (
+              <div key={t.topic} className="fg-topic-seg" style={{ flex: t.count, background: TOPIC_COLORS[i % TOPIC_COLORS.length] }} title={`${t.topic}: ${t.count}`} />
+            ))}
+          </div>
+          <div className="fg-topic-legend">
+            {topicDist.map((t, i) => (
+              <span key={t.topic} className="fg-topic-legend-item">
+                <span className="cal-dot" style={{ background: TOPIC_COLORS[i % TOPIC_COLORS.length] }} />
+                {t.topic} ({Math.round((t.count / topicTotal) * 100)}%)
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Fatigued Phrases */}
+      {fatiguedPhrases.length > 0 && (
+        <div style={{ marginTop: 14 }}>
+          <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 6 }}>Fatigued Phrases This Month</div>
+          <div className="fg-phrase-list">
+            {fatiguedPhrases.map(f => (
+              <span key={f.phrase} className="fg-phrase-tag">"{f.phrase}" <span className="fg-phrase-count">×{f.count}</span></span>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
