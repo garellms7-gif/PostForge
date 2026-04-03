@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Trash2, Copy, Clock, Star, Sparkles, Recycle, RefreshCw, BarChart2, AlertCircle, Save } from 'lucide-react';
 import { UndoToast } from '../components/UxHelpers';
 import RepurposeEngine from '../components/RepurposeEngine';
+import { calculateRawScore, calculateEngagementScore, getScoreColor, getScoreLabel } from '../lib/scoring';
 
 function getTopPosts() { return JSON.parse(localStorage.getItem('postforge_top_posts') || '[]'); }
 function saveTopPosts(posts) { localStorage.setItem('postforge_top_posts', JSON.stringify(posts)); }
@@ -100,18 +101,41 @@ function EngagementForm({ post, onSave, onCancel }) {
   );
 }
 
+function ScoreGauge({ score, size = 40 }) {
+  const r = (size - 4) / 2;
+  const circ = 2 * Math.PI * r;
+  const offset = circ - (Math.min(score, 100) / 100) * circ;
+  const color = getScoreColor(score);
+  return (
+    <svg width={size} height={size} className="eng-gauge">
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--border)" strokeWidth={3} />
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={3}
+        strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round"
+        style={{ transform: 'rotate(-90deg)', transformOrigin: 'center', transition: 'stroke-dashoffset 0.5s' }} />
+      <text x="50%" y="50%" textAnchor="middle" dy="0.35em" fontSize="11" fontWeight="700" fill={color}>
+        {score}
+      </text>
+    </svg>
+  );
+}
+
 function EngagementBadge({ postId, community, platform }) {
   const all = getEngagement();
   const eng = all[postId];
   if (!eng) return null;
 
-  const total = getTotalInteractions(eng);
-  const perf = getPerformanceLabel(postId, community, eng);
+  const raw = calculateRawScore(platform || eng._platform, eng);
+  const normalized = calculateEngagementScore(platform || eng._platform, eng, community);
+  const label = getScoreLabel(normalized);
+  const color = getScoreColor(normalized);
 
   return (
     <div className="eng-badge-row">
-      <span className="eng-total">{total} interactions</span>
-      {perf && <span className={`eng-perf ${perf.cls}`}>{perf.label}</span>}
+      <ScoreGauge score={normalized} />
+      <div className="eng-badge-info">
+        <span className="eng-score-label" style={{ color }}>{label}</span>
+        <span className="eng-raw-score">{raw} raw pts</span>
+      </div>
       {eng.sentiment && <span className={`eng-sentiment eng-sent-${eng.sentiment.toLowerCase()}`}>{eng.sentiment}</span>}
     </div>
   );

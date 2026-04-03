@@ -2622,15 +2622,29 @@ body {
 
 .eng-badge-row {
   display: flex;
-  gap: 6px;
+  gap: 8px;
   align-items: center;
   margin-bottom: 4px;
 }
 
-.eng-total {
+.eng-gauge {
+  flex-shrink: 0;
+}
+
+.eng-badge-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.eng-score-label {
   font-size: 12px;
-  font-weight: 600;
-  color: var(--text);
+  font-weight: 700;
+}
+
+.eng-raw-score {
+  font-size: 10px;
+  color: var(--muted);
 }
 
 .eng-perf {

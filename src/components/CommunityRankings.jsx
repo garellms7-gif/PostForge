@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Trophy, TrendingUp, TrendingDown, Minus, ChevronDown, ChevronUp, Clock, Calendar } from 'lucide-react';
+import { calculateRawScore } from '../lib/scoring';
 
 function getHistory() { return JSON.parse(localStorage.getItem('postforge_history') || '[]'); }
 function getEngagement() { return JSON.parse(localStorage.getItem('postforge_engagement') || '{}'); }
@@ -18,11 +19,6 @@ const RANKED_TYPES = ['Share an update', 'Ask for help / reach', 'Tease a roadma
 const MEDAL = ['🥇', '🥈', '🥉'];
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-function getTotalInteractions(eng) {
-  if (!eng) return 0;
-  return Object.entries(eng).filter(([k]) => !k.startsWith('_') && k !== 'sentiment' && k !== 'notes' && k !== 'ratio').reduce((s, [, v]) => s + (Number(v) || 0), 0);
-}
-
 function computeRankings(communityName) {
   const history = getHistory().filter(h => h.community === communityName);
   const engagement = getEngagement();
@@ -34,7 +30,7 @@ function computeRankings(communityName) {
 
   for (const post of history) {
     const eng = engagement[post.id];
-    const score = getTotalInteractions(eng);
+    const score = calculateRawScore(eng._platform || '', eng);
     const mappedType = POST_TYPE_MAP[post.postType] || 'General engagement';
     if (!typeData[mappedType]) continue;
 
@@ -79,7 +75,7 @@ function computeRankings(communityName) {
     const d = new Date(p.date);
     const day = d.getDay();
     const hour = d.getHours();
-    const score = getTotalInteractions(engagement[p.id]);
+    const score = calculateRawScore(engagement[p.id]?._platform || '', engagement[p.id]);
     dayScores[day] = (dayScores[day] || []);
     dayScores[day].push(score);
     hourScores[hour] = (hourScores[hour] || []);
