@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Save, Plus, Trash2, Package, Power } from 'lucide-react';
+import { Save, Plus, Trash2, Package, Power, BarChart2 } from 'lucide-react';
 import { generatePost, resolveActiveBlocks } from '../lib/generatePost';
 import { postToPlatform } from '../lib/posting';
 import { UndoToast } from '../components/UxHelpers';
 import MyVoice from '../components/MyVoice';
+import ProductAnalytics from '../components/ProductAnalytics';
 
 const EMPTY_PRODUCT = {
   name: '',
@@ -46,6 +47,7 @@ export default function ProductHub() {
   const [products, setProducts] = useState([]);
   const [saved, setSaved] = useState(false);
   const [undoProduct, setUndoProduct] = useState(null);
+  const [analyticsProduct, setAnalyticsProduct] = useState(null);
   const scheduleTimerRef = useRef(null);
 
   useEffect(() => {
@@ -310,6 +312,9 @@ export default function ProductHub() {
                       <button className="btn btn-primary btn-sm" onClick={() => handleLoad(p)}>
                         Load
                       </button>
+                      <button className="btn btn-secondary btn-sm" onClick={() => setAnalyticsProduct(p)}>
+                        <BarChart2 size={13} /> Analytics
+                      </button>
                       <button
                         className={`btn btn-sm ${isActivated ? 'btn-activate-on' : 'btn-activate-off'}`}
                         onClick={() => handleToggleActivate(p.id)}
@@ -341,6 +346,11 @@ export default function ProductHub() {
 
       {/* ===== My Voice Tab ===== */}
       {tab === 'voice' && <MyVoice />}
+
+      {/* Product Analytics Panel */}
+      {analyticsProduct && (
+        <ProductAnalytics product={analyticsProduct} onClose={() => setAnalyticsProduct(null)} />
+      )}
 
       {undoProduct && (
         <UndoToast
