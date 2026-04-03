@@ -7,6 +7,7 @@ import OptimalTiming from '../components/OptimalTiming';
 import PostQueue from '../components/PostQueue';
 import RecurringTemplates from '../components/RecurringTemplates';
 import RulesEngine from '../components/RulesEngine';
+import CampaignManager from '../components/CampaignManager';
 
 const MODES = [
   { id: 'instant', label: 'Instant Mode', icon: Zap, desc: 'Send now to all enabled communities' },
@@ -434,6 +435,13 @@ export default function Automation() {
             return tLen > 0 ? <span className="tab-count">{tLen}</span> : null;
           })()}
         </button>
+        <button className={`tab-btn ${view === 'campaigns' ? 'tab-active' : ''}`} onClick={() => setView('campaigns')}>
+          Campaigns
+          {(() => {
+            const aLen = JSON.parse(localStorage.getItem('postforge_campaigns') || '[]').filter(c => c.status === 'active').length;
+            return aLen > 0 ? <span className="tab-count">{aLen}</span> : null;
+          })()}
+        </button>
         <button className={`tab-btn ${view === 'rules' ? 'tab-active' : ''}`} onClick={() => setView('rules')}>
           Rules
           {(() => {
@@ -453,6 +461,7 @@ export default function Automation() {
       {view === 'queue' && <PostQueue />}
       {view === 'templates' && <RecurringTemplates />}
       {view === 'rules' && <RulesEngine />}
+      {view === 'campaigns' && <CampaignManager />}
 
       {view === 'modes' && <>
       {/* Mode selector */}
