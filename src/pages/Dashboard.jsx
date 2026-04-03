@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Flame, Calendar, Send, Users, Clock, Check, X, Package, Timer } from 'lucide-react';
 import { getScheduledPosts } from '../lib/scheduler';
 import GoalTracker from '../components/GoalTracker';
+import PerformanceTab from '../components/PerformanceTab';
 
 function getHistory() { return JSON.parse(localStorage.getItem('postforge_history') || '[]'); }
 function getPostLog() { return JSON.parse(localStorage.getItem('postforge_post_log') || '[]'); }
@@ -123,11 +124,21 @@ export default function Dashboard({ navigateTo }) {
     return `${m}m`;
   };
 
+  const [dashTab, setDashTab] = useState('overview');
+
   return (
     <div>
       <h1 className="page-title">Dashboard</h1>
       <p className="page-subtitle">Your PostForge momentum at a glance.</p>
 
+      <div className="tab-bar">
+        <button className={`tab-btn ${dashTab === 'overview' ? 'tab-active' : ''}`} onClick={() => setDashTab('overview')}>Overview</button>
+        <button className={`tab-btn ${dashTab === 'performance' ? 'tab-active' : ''}`} onClick={() => setDashTab('performance')}>Performance</button>
+      </div>
+
+      {dashTab === 'performance' && <PerformanceTab />}
+
+      {dashTab === 'overview' && <>
       {/* Section 1 — Today's Overview */}
       <div className="dash-stats-grid dash-stats-4">
         <div className="dash-stat-card">
@@ -273,6 +284,7 @@ export default function Dashboard({ navigateTo }) {
           </div>
         </div>
       )}
+      </>}
     </div>
   );
 }
