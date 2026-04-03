@@ -4,6 +4,7 @@ import { getCommunityHealth, daysSinceLastPost } from '../lib/health';
 import { testDiscordWebhook, testLinkedInToken, testRedditConnection, testTwitterConnection, getTwitterUsage } from '../lib/posting';
 import { UndoToast } from '../components/UxHelpers';
 import AdvancedPostingSettings from '../components/AdvancedPostingSettings';
+import CommunityRankings from '../components/CommunityRankings';
 
 const PLATFORMS = ['Discord', 'Reddit', 'LinkedIn', 'X', 'Facebook', 'Slack', 'Other'];
 
@@ -464,6 +465,7 @@ export default function Communities() {
   const [name, setName] = useState('');
   const [platform, setPlatform] = useState('Discord');
   const [expandedId, setExpandedId] = useState(null);
+  const [settingsTab, setSettingsTab] = useState('settings');
   const [undoItem, setUndoItem] = useState(null);
 
   useEffect(() => {
@@ -610,6 +612,15 @@ export default function Communities() {
 
                   {isExpanded && (
                     <div className="community-settings">
+                      {/* Sub-tabs: Settings / Rankings */}
+                      <div className="cr-subtabs">
+                        <button className={`cr-subtab ${settingsTab === 'settings' ? 'cr-subtab-active' : ''}`} onClick={() => setSettingsTab('settings')}>Settings</button>
+                        <button className={`cr-subtab ${settingsTab === 'rankings' ? 'cr-subtab-active' : ''}`} onClick={() => setSettingsTab('rankings')}>Rankings</button>
+                      </div>
+
+                      {settingsTab === 'rankings' && <CommunityRankings community={c} />}
+
+                      {settingsTab === 'settings' && <>
                       {/* Discord-specific setup */}
                       {isDiscord && (
                         <div style={{ marginBottom: 20 }}>
@@ -694,6 +705,7 @@ export default function Communities() {
 
                       {/* Advanced Posting Settings */}
                       <AdvancedPostingSettings community={c} onUpdate={updateCommunity} />
+                      </>}
                     </div>
                   )}
                 </div>

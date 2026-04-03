@@ -2406,6 +2406,197 @@ body {
   flex-shrink: 0;
 }
 
+/* ===== Community Rankings ===== */
+.cr-subtabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0;
+}
+
+.cr-subtab {
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+
+.cr-subtab:hover {
+  color: var(--text);
+}
+
+.cr-subtab-active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.cr-empty {
+  text-align: center;
+  padding: 20px 12px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.cr-empty p {
+  margin-top: 6px;
+}
+
+.cr-container {
+  padding: 4px 0;
+}
+
+.cr-overview {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  background: rgba(99, 102, 241, 0.04);
+  border: 1px solid rgba(99, 102, 241, 0.12);
+  border-radius: 8px;
+}
+
+.cr-overview-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+}
+
+.cr-overview-label {
+  color: var(--muted);
+}
+
+.cr-overview-value {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.cr-val-good {
+  color: var(--success);
+}
+
+.cr-val-low {
+  color: var(--danger);
+}
+
+.cr-leaderboard {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cr-rank-row {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.cr-rank-top {
+  border-color: rgba(234, 179, 8, 0.3);
+}
+
+.cr-rank-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  cursor: pointer;
+}
+
+.cr-rank-main:hover {
+  background: rgba(99, 102, 241, 0.03);
+}
+
+.cr-rank-pos {
+  width: 28px;
+  text-align: center;
+  flex-shrink: 0;
+  font-size: 16px;
+}
+
+.cr-rank-num {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.cr-rank-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.cr-rank-type {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.cr-rank-stats {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 1px;
+}
+
+.cr-rank-needsmore {
+  font-size: 11px;
+  color: #eab308;
+  margin-top: 1px;
+}
+
+.cr-rank-trend {
+  flex-shrink: 0;
+}
+
+.cr-trend {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 8px;
+}
+
+.cr-trend-up {
+  background: rgba(34, 197, 94, 0.1);
+  color: var(--success);
+}
+
+.cr-trend-down {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--danger);
+}
+
+.cr-trend-stable {
+  background: rgba(113, 113, 122, 0.1);
+  color: var(--muted);
+}
+
+.cr-rank-chevron {
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.cr-rank-best {
+  padding: 8px 12px 10px 50px;
+  border-top: 1px solid var(--border);
+}
+
+.cr-rank-best-text {
+  font-size: 12px;
+  color: var(--text);
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
 /* ===== Engagement Tracking ===== */
 .eng-form {
   margin-top: 8px;
