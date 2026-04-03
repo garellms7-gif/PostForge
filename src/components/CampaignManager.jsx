@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Plus, Play, Pause, Square, Trash2, ChevronDown, ChevronUp, Check } from 'lucide-react';
+import { Plus, Play, Pause, Square, Trash2, ChevronDown, ChevronUp, Check, Zap } from 'lucide-react';
 import { generatePost, resolveActiveBlocks } from '../lib/generatePost';
+import CampaignOptimizer from './CampaignOptimizer';
 
 function getCampaigns() { return JSON.parse(localStorage.getItem('postforge_campaigns') || '[]'); }
 function saveCampaigns(c) { localStorage.setItem('postforge_campaigns', JSON.stringify(c)); }
@@ -73,6 +74,7 @@ export default function CampaignManager() {
   const [communities] = useState(getCommunities());
   const [products] = useState(getProducts());
   const [expandedId, setExpandedId] = useState(null);
+  const [detailTab, setDetailTab] = useState('details');
 
   useEffect(() => { setCampaigns(getCampaigns()); }, []);
 
@@ -141,6 +143,11 @@ export default function CampaignManager() {
 
   const handleDelete = (id) => {
     const updated = campaigns.filter(c => c.id !== id);
+    saveCampaigns(updated); setCampaigns(updated);
+  };
+
+  const handleUpdateCampaign = (id, updates) => {
+    const updated = campaigns.map(c => c.id === id ? { ...c, ...updates } : c);
     saveCampaigns(updated); setCampaigns(updated);
   };
 
@@ -310,6 +317,18 @@ export default function CampaignManager() {
 
                 {isExpanded && (
                   <div className="cm-details">
+                    <div className="cr-subtabs" style={{ marginBottom: 12 }}>
+                      <button className={`cr-subtab ${detailTab === 'details' ? 'cr-subtab-active' : ''}`} onClick={() => setDetailTab('details')}>Details</button>
+                      <button className={`cr-subtab ${detailTab === 'optimizer' ? 'cr-subtab-active' : ''}`} onClick={() => setDetailTab('optimizer')}>
+                        <Zap size={11} /> Optimizer
+                      </button>
+                    </div>
+
+                    {detailTab === 'optimizer' && (
+                      <CampaignOptimizer campaign={c} onUpdateCampaign={handleUpdateCampaign} />
+                    )}
+
+                    {detailTab === 'details' && (<>
                     <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 6 }}>Products</div>
                     <div className="cm-chip-list" style={{ marginBottom: 10 }}>
                       {products.filter(p => c.productIds.includes(p.id)).map(p => <span key={p.id} className="cm-chip cm-chip-active">{p.name}</span>)}
@@ -330,6 +349,7 @@ export default function CampaignManager() {
                         ))}
                       </>
                     )}
+                    </>)}
                   </div>
                 )}
               </div>
