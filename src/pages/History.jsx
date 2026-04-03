@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Trash2, Copy, Clock, Star, Sparkles, Recycle } from 'lucide-react';
+import { Trash2, Copy, Clock, Star, Sparkles, Recycle, RefreshCw } from 'lucide-react';
 import { UndoToast } from '../components/UxHelpers';
+import RepurposeEngine from '../components/RepurposeEngine';
 
 function getTopPosts() {
   return JSON.parse(localStorage.getItem('postforge_top_posts') || '[]');
@@ -16,6 +17,7 @@ export default function History({ navigateTo }) {
   const [copiedId, setCopiedId] = useState(null);
   const [tab, setTab] = useState('all');
   const [undoItem, setUndoItem] = useState(null);
+  const [repurposePost, setRepurposePost] = useState(null);
 
   useEffect(() => {
     const data = localStorage.getItem('postforge_history');
@@ -116,6 +118,9 @@ export default function History({ navigateTo }) {
                 {item.recycledAt && (
                   <span className="recycled-label"><Recycle size={11} /> Recycled from {new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
                 )}
+                {item.repurposedFrom && (
+                  <span className="rp-badge"><RefreshCw size={10} /> Repurposed from {new Date(item.repurposedFrom).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                )}
               </div>
               <span className="history-date">{formatDate(item.recycledAt || item.date)}</span>
             </div>
@@ -138,6 +143,11 @@ export default function History({ navigateTo }) {
                     <Star size={14} /> Remove
                   </button>
                 </>
+              )}
+              {tab === 'all' && (
+                <button className="btn btn-secondary btn-sm" onClick={() => setRepurposePost(item)}>
+                  <RefreshCw size={13} /> Repurpose
+                </button>
               )}
               {tab === 'all' && (
                 <button className="btn btn-danger btn-sm" onClick={() => handleDelete(item.id)}>
@@ -164,6 +174,10 @@ export default function History({ navigateTo }) {
             </>
           )}
         </div>
+      )}
+
+      {repurposePost && (
+        <RepurposeEngine post={repurposePost} onClose={() => { setRepurposePost(null); setHistory(JSON.parse(localStorage.getItem('postforge_history') || '[]')); }} />
       )}
 
       {undoItem && (
