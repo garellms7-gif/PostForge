@@ -538,7 +538,7 @@ body {
 /* Product library grid */
 .product-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 16px;
 }
 
@@ -551,11 +551,12 @@ body {
   flex-direction: column;
   gap: 8px;
   transition: border-color 0.15s;
+  overflow: hidden;
 }
 
 .product-card-active {
   border-color: var(--accent);
-  box-shadow: 0 0 0 1px var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
 }
 
 .product-card-name {
@@ -587,8 +588,11 @@ body {
 
 .product-card-actions {
   display: flex;
-  gap: 8px;
-  margin-top: 8px;
+  gap: 6px;
+  margin-top: auto;
+  padding-top: 10px;
+  flex-wrap: wrap;
+  border-top: 1px solid var(--border);
 }
 
 /* Activate / Deactivate buttons */
@@ -1495,14 +1499,15 @@ body {
 }
 
 .pl-status-select {
-  padding: 4px 8px;
-  font-size: 11px;
+  padding: 4px 6px;
+  font-size: 10px;
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 6px;
   color: var(--text);
   cursor: pointer;
   font-family: inherit;
+  max-width: 100px;
 }
 
 .product-card-archived {
