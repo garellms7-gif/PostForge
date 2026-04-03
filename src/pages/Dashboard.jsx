@@ -1,132 +1,125 @@
 import { useState, useEffect } from 'react';
-import { Flame, TrendingUp, Users, Package, BarChart2 } from 'lucide-react';
+import { Flame, Calendar, Send, Users, Clock, Check, X, Package, Timer } from 'lucide-react';
+import { getScheduledPosts } from '../lib/scheduler';
 
-function getHistory() {
-  return JSON.parse(localStorage.getItem('postforge_history') || '[]');
+function getHistory() { return JSON.parse(localStorage.getItem('postforge_history') || '[]'); }
+function getPostLog() { return JSON.parse(localStorage.getItem('postforge_post_log') || '[]'); }
+function getCommunities() { return JSON.parse(localStorage.getItem('postforge_communities') || '[]'); }
+function getProducts() { return JSON.parse(localStorage.getItem('postforge_products') || '[]'); }
+function getDailyGoal() {
+  const s = JSON.parse(localStorage.getItem('postforge_settings') || '{}');
+  return s.dailyGoal || 1;
+}
+function saveDailyGoal(g) {
+  const s = JSON.parse(localStorage.getItem('postforge_settings') || '{}');
+  s.dailyGoal = g;
+  localStorage.setItem('postforge_settings', JSON.stringify(s));
 }
 
-function getPostLog() {
-  return JSON.parse(localStorage.getItem('postforge_post_log') || '[]');
-}
-
-function getCommunities() {
-  return JSON.parse(localStorage.getItem('postforge_communities') || '[]');
-}
-
-function getProducts() {
-  return JSON.parse(localStorage.getItem('postforge_products') || '[]');
-}
-
-function toDateKey(iso) {
-  return new Date(iso).toISOString().split('T')[0];
-}
+function toDateKey(iso) { return new Date(iso).toISOString().split('T')[0]; }
+function isToday(iso) { return toDateKey(iso) === toDateKey(new Date().toISOString()); }
 
 function calcStreak(allDates) {
   if (allDates.length === 0) return 0;
   const unique = [...new Set(allDates.map(toDateKey))].sort().reverse();
   const today = toDateKey(new Date().toISOString());
   const yesterday = toDateKey(new Date(Date.now() - 86400000).toISOString());
-
-  // Streak must include today or yesterday
   if (unique[0] !== today && unique[0] !== yesterday) return 0;
-
   let streak = 1;
   for (let i = 1; i < unique.length; i++) {
-    const prev = new Date(unique[i - 1]);
-    const curr = new Date(unique[i]);
-    const diff = (prev - curr) / 86400000;
+    const diff = (new Date(unique[i - 1]) - new Date(unique[i])) / 86400000;
     if (diff === 1) streak++;
     else break;
   }
   return streak;
 }
 
-function getWeekStart() {
-  const now = new Date();
-  const day = now.getDay();
-  const diff = now.getDate() - day + (day === 0 ? -6 : 1);
-  const start = new Date(now);
-  start.setDate(diff);
-  start.setHours(0, 0, 0, 0);
-  return start;
+function getCredStatus(c) {
+  const cr = c.credentials || {};
+  if (c.platform === 'Discord') return cr.webhookUrl ? 'connected' : 'missing';
+  if (c.platform === 'LinkedIn') return cr.accessToken ? 'connected' : 'missing';
+  if (c.platform === 'Reddit') return cr.appId && cr.username ? 'connected' : 'missing';
+  if (c.platform === 'X') return cr.apiKey && cr.accessToken ? 'connected' : 'missing';
+  return 'missing';
 }
 
-function getLast14Days() {
-  const days = [];
-  for (let i = 13; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    days.push(toDateKey(d.toISOString()));
-  }
-  return days;
-}
+const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 export default function Dashboard({ navigateTo }) {
-  const [history, setHistory] = useState([]);
   const [postLog, setPostLog] = useState([]);
+  const [history, setHistory] = useState([]);
   const [communities, setCommunities] = useState([]);
   const [products, setProducts] = useState([]);
+  const [dailyGoal, setDailyGoalState] = useState(1);
+  const [now, setNow] = useState(Date.now());
 
   useEffect(() => {
-    setHistory(getHistory());
     setPostLog(getPostLog());
+    setHistory(getHistory());
     setCommunities(getCommunities());
     setProducts(getProducts());
+    setDailyGoalState(getDailyGoal());
+    const i = setInterval(() => setNow(Date.now()), 10000);
+    return () => clearInterval(i);
   }, []);
 
-  // All post dates (from history + post log)
-  const allDates = [
-    ...history.map(h => h.date),
-    ...postLog.map(l => l.date),
-  ].filter(Boolean);
+  const allEntries = [...postLog, ...history];
+  const allDates = allEntries.map(e => e.date).filter(Boolean);
 
-  // 1. Posting Streak
+  // Section 1 — Today's Overview
+  const todayKey = toDateKey(new Date().toISOString());
+  const scheduledToday = getScheduledPosts().filter(p => toDateKey(p.time.toISOString()) === todayKey).length;
+  const sentToday = postLog.filter(e => isToday(e.date) && e.status === 'success').length;
+  const weekStart = new Date(); weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1); weekStart.setHours(0, 0, 0, 0);
+  const activeCommThisWeek = new Set([...postLog.filter(e => new Date(e.date) >= weekStart).map(e => e.community), ...history.filter(e => new Date(e.date) >= weekStart).map(e => e.community)].filter(Boolean)).size;
   const streak = calcStreak(allDates);
 
-  // 2. This Week
-  const weekStart = getWeekStart();
-  const thisWeekHistory = history.filter(h => new Date(h.date) >= weekStart);
-  const thisWeekLog = postLog.filter(l => new Date(l.date) >= weekStart);
-  const weekPosts = thisWeekHistory.length + thisWeekLog.length;
-  const weekCommunities = new Set([
-    ...thisWeekHistory.map(h => h.community),
-    ...thisWeekLog.map(l => l.community),
-  ].filter(Boolean)).size;
-
-  // 3. Total Reach
-  const totalCommunities = communities.length;
-
-  // 4. Product Activity
-  const productActivity = products.map(p => {
-    const count = postLog.filter(l => l.productName === p.name).length;
-    return { name: p.name || 'Untitled', count };
-  });
-
-  // 5. Posts per day (last 14 days)
-  const last14 = getLast14Days();
-  const postsByDay = last14.map(day => {
-    const count = allDates.filter(d => toDateKey(d) === day).length;
-    return { day, count };
-  });
-  const maxPosts = Math.max(1, ...postsByDay.map(d => d.count));
-
-  // 6. Community Leaderboard
-  const communityCounts = {};
-  for (const entry of [...history, ...postLog]) {
-    const name = entry.community;
-    if (name) communityCounts[name] = (communityCounts[name] || 0) + 1;
+  // Section 2 — Weekly Performance
+  const last7 = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(); d.setDate(d.getDate() - i);
+    const key = toDateKey(d.toISOString());
+    const count = postLog.filter(e => toDateKey(e.date) === key && e.status === 'success').length;
+    last7.push({ day: d, key, count, dayName: DAY_NAMES[d.getDay()], dayNum: d.getDate() });
   }
-  const leaderboard = Object.entries(communityCounts)
-    .map(([name, count]) => {
-      const comm = communities.find(c => c.name === name);
-      return { name, count, platform: comm?.platform || '' };
-    })
-    .sort((a, b) => b.count - a.count);
-  const maxLeaderboard = Math.max(1, leaderboard[0]?.count || 1);
+  const maxWeek = Math.max(1, ...last7.map(d => d.count), dailyGoal);
 
-  const formatDayLabel = (dateStr) => {
-    const d = new Date(dateStr + 'T00:00:00');
-    return d.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric' });
+  // Section 3 — Platform Breakdown
+  const platformTypes = ['Discord', 'LinkedIn', 'Reddit', 'X'];
+  const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+  const platformCards = platformTypes.map(p => {
+    const comms = communities.filter(c => c.platform === p);
+    const sentThisMonth = postLog.filter(e => e.platform === p && new Date(e.date) >= monthStart && e.status === 'success').length;
+    const connected = comms.filter(c => getCredStatus(c) === 'connected').length;
+    const scheduled = getScheduledPosts().filter(sp => sp.platform === p && sp.time > new Date()).sort((a, b) => a.time - b.time);
+    const nextPost = scheduled[0];
+    return { platform: p, count: comms.length, sentThisMonth, connected, nextPost };
+  }).filter(p => p.count > 0);
+
+  // Section 4 — Product Leaderboard
+  const productLeaderboard = products.map(p => {
+    const count = postLog.filter(e => e.productName === p.name && new Date(e.date) >= monthStart).length;
+    const commReached = new Set(postLog.filter(e => e.productName === p.name).map(e => e.community).filter(Boolean)).size;
+    return { name: p.name || 'Untitled', count, commReached };
+  }).sort((a, b) => b.count - a.count);
+  const maxProductPosts = Math.max(1, productLeaderboard[0]?.count || 1);
+
+  // Section 5 — Activity Feed
+  const activityFeed = postLog.slice(0, 20);
+
+  // Section 6 — Upcoming Posts
+  const upcoming = getScheduledPosts().filter(p => p.time > new Date()).sort((a, b) => a.time - b.time).slice(0, 5);
+
+  const formatTime = (d) => d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+  const formatDateTime = (iso) => new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const formatCountdown = (target) => {
+    const diff = target.getTime() - now;
+    if (diff <= 0) return 'Now';
+    const h = Math.floor(diff / 3600000);
+    const m = Math.floor((diff % 3600000) / 60000);
+    if (h > 24) return `${Math.floor(h / 24)}d ${h % 24}h`;
+    if (h > 0) return `${h}h ${m}m`;
+    return `${m}m`;
   };
 
   return (
@@ -134,94 +127,140 @@ export default function Dashboard({ navigateTo }) {
       <h1 className="page-title">Dashboard</h1>
       <p className="page-subtitle">Your PostForge momentum at a glance.</p>
 
-      {/* Stat cards row */}
-      <div className="dash-stats-grid">
+      {/* Section 1 — Today's Overview */}
+      <div className="dash-stats-grid dash-stats-4">
         <div className="dash-stat-card">
-          <div className="dash-stat-header">
-            <span className="dash-stat-label">Posting Streak</span>
-            {streak >= 3 && <Flame size={18} className="dash-flame" />}
-          </div>
-          <div className="dash-stat-value">{streak} day{streak !== 1 ? 's' : ''}</div>
-          <div className="dash-stat-sub">{streak >= 3 ? 'On fire!' : streak > 0 ? 'Keep going!' : 'Start posting today'}</div>
+          <div className="dash-stat-header"><span className="dash-stat-label">Scheduled Today</span><Calendar size={16} className="dash-icon-muted" /></div>
+          <div className="dash-stat-value">{scheduledToday}</div>
+          <div className="dash-stat-sub">post{scheduledToday !== 1 ? 's' : ''} queued</div>
         </div>
-
         <div className="dash-stat-card">
-          <div className="dash-stat-header">
-            <span className="dash-stat-label">This Week</span>
-            <TrendingUp size={18} className="dash-icon-muted" />
-          </div>
-          <div className="dash-stat-value">{weekPosts}</div>
-          <div className="dash-stat-sub">{weekCommunities} communit{weekCommunities !== 1 ? 'ies' : 'y'} reached</div>
+          <div className="dash-stat-header"><span className="dash-stat-label">Sent Today</span><Send size={16} className="dash-icon-muted" /></div>
+          <div className="dash-stat-value">{sentToday}</div>
+          <div className="dash-stat-sub">{sentToday >= dailyGoal ? 'Goal hit!' : `${dailyGoal - sentToday} to daily goal`}</div>
         </div>
-
         <div className="dash-stat-card">
-          <div className="dash-stat-header">
-            <span className="dash-stat-label">Total Reach</span>
-            <Users size={18} className="dash-icon-muted" />
-          </div>
-          <div className="dash-stat-value">{totalCommunities}</div>
-          <div className="dash-stat-sub">communit{totalCommunities !== 1 ? 'ies' : 'y'} connected</div>
+          <div className="dash-stat-header"><span className="dash-stat-label">Active Communities</span><Users size={16} className="dash-icon-muted" /></div>
+          <div className="dash-stat-value">{activeCommThisWeek}</div>
+          <div className="dash-stat-sub">this week</div>
+        </div>
+        <div className="dash-stat-card">
+          <div className="dash-stat-header"><span className="dash-stat-label">Posting Streak</span>{streak >= 3 && <Flame size={16} className="dash-flame" />}</div>
+          <div className="dash-stat-value">{streak}</div>
+          <div className="dash-stat-sub">{streak >= 3 ? 'On fire!' : streak > 0 ? 'Keep going!' : 'Start today'}</div>
         </div>
       </div>
 
-      {/* Bar chart — last 14 days */}
+      {/* Section 2 — Weekly Performance */}
       <div className="card">
-        <div className="card-title">Posts — Last 14 Days</div>
-        <div className="dash-chart">
-          {postsByDay.map(d => (
-            <div key={d.day} className="dash-chart-col">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <div className="card-title" style={{ marginBottom: 0 }}>Weekly Performance</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--muted)' }}>
+            Daily goal:
+            <select className="pl-filter-select" style={{ padding: '3px 6px', fontSize: 11 }} value={dailyGoal} onChange={e => { const v = Number(e.target.value); setDailyGoalState(v); saveDailyGoal(v); }}>
+              {[1, 2, 3, 5, 10].map(n => <option key={n} value={n}>{n}</option>)}
+            </select>
+          </div>
+        </div>
+        <div className="dash-chart dash-chart-7">
+          {last7.map(d => (
+            <div key={d.key} className="dash-chart-col">
               <div className="dash-chart-count">{d.count || ''}</div>
               <div className="dash-chart-bar-wrap">
-                <div
-                  className="dash-chart-bar"
-                  style={{ height: `${(d.count / maxPosts) * 100}%` }}
-                />
+                <div className={`dash-chart-bar ${d.count >= dailyGoal ? 'dash-bar-goal' : 'dash-bar-below'}`} style={{ height: `${(d.count / maxWeek) * 100}%` }} />
               </div>
-              <div className="dash-chart-label">{formatDayLabel(d.day)}</div>
+              <div className="dash-chart-label">{d.dayName} {d.dayNum}</div>
             </div>
           ))}
         </div>
+        <div style={{ display: 'flex', gap: 12, marginTop: 8, fontSize: 11, color: 'var(--muted)' }}>
+          <span><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 2, background: 'var(--success)', marginRight: 4 }} />Goal hit</span>
+          <span><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 2, background: 'var(--muted)', opacity: 0.4, marginRight: 4 }} />Below goal</span>
+        </div>
       </div>
 
-      {/* Community Leaderboard */}
-      <div className="card">
-        <div className="card-title">Community Leaderboard</div>
-        {leaderboard.length > 0 ? (
+      {/* Section 3 — Platform Breakdown */}
+      {platformCards.length > 0 && (
+        <div className="dash-platform-grid">
+          {platformCards.map(p => (
+            <div key={p.platform} className="dash-platform-card">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <span className={`platform-badge ${p.platform.toLowerCase()}`}>{p.platform}</span>
+                <span className={`cred-status-badge ${p.connected > 0 ? 'cred-status-ok' : 'cred-status-missing'}`}>{p.connected > 0 ? 'Connected' : 'Not set up'}</span>
+              </div>
+              <div className="dash-platform-stat">{p.sentThisMonth} <span>sent this month</span></div>
+              <div className="dash-platform-stat">{p.count} <span>communit{p.count !== 1 ? 'ies' : 'y'}</span></div>
+              {p.nextPost && (
+                <div className="dash-platform-next">
+                  <Timer size={11} /> Next: {formatTime(p.nextPost.time)}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Section 4 — Product Leaderboard */}
+      {productLeaderboard.length > 0 && (
+        <div className="card">
+          <div className="card-title">Product Leaderboard (this month)</div>
           <div className="dash-leaderboard">
-            {leaderboard.map((c, i) => (
-              <div key={c.name} className="dash-leader-row">
+            {productLeaderboard.map((p, i) => (
+              <div key={p.name} className="dash-leader-row">
                 <div className="dash-leader-rank">{i + 1}</div>
                 <div className="dash-leader-info">
-                  {c.platform && <span className={`platform-badge ${c.platform.toLowerCase()}`}>{c.platform}</span>}
-                  <span className="dash-leader-name">{c.name}</span>
+                  <Package size={13} className="dash-icon-muted" />
+                  <span className="dash-leader-name">{p.name}</span>
                 </div>
                 <div className="dash-leader-bar-wrap">
-                  <div className="dash-leader-bar" style={{ width: `${(c.count / maxLeaderboard) * 100}%` }} />
+                  <div className="dash-leader-bar" style={{ width: `${(p.count / maxProductPosts) * 100}%` }} />
                 </div>
-                <div className="dash-leader-count">{c.count}</div>
+                <div className="dash-leader-count">{p.count}</div>
+                <span style={{ fontSize: 11, color: 'var(--muted)' }}>{p.commReached} comm.</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Section 5 — Community Activity Feed */}
+      <div className="card">
+        <div className="card-title">Activity Feed</div>
+        {activityFeed.length > 0 ? (
+          <div className="dash-feed">
+            {activityFeed.map(entry => (
+              <div key={entry.id} className="dash-feed-item">
+                <span className={`log-status ${entry.status}`}>
+                  {entry.status === 'success' ? <Check size={10} /> : <X size={10} />}
+                </span>
+                <span className="dash-feed-time">{formatDateTime(entry.date)}</span>
+                {entry.productName && <span className="log-product-name">{entry.productName}</span>}
+                <span className={`platform-badge ${(entry.platform || '').toLowerCase()}`}>{entry.platform}</span>
+                <span className="dash-feed-comm">{entry.community}</span>
+                <span className="dash-feed-preview">{(entry.content || '').slice(0, 50)}</span>
               </div>
             ))}
           </div>
         ) : (
           <div style={{ textAlign: 'center', padding: 16 }}>
-            <p style={{ color: 'var(--muted)', fontSize: 14 }}>No posts yet. Generate and save posts to see your leaderboard.</p>
+            <p style={{ color: 'var(--muted)', fontSize: 14 }}>No activity yet.</p>
             {navigateTo && <button className="btn btn-primary btn-sm" style={{ marginTop: 10 }} onClick={() => navigateTo('generator')}>Go to Generator</button>}
           </div>
         )}
       </div>
 
-      {/* Product Activity */}
-      {productActivity.length > 0 && (
+      {/* Section 6 — Upcoming Posts */}
+      {upcoming.length > 0 && (
         <div className="card">
-          <div className="card-title">Product Activity</div>
-          <div className="dash-product-list">
-            {productActivity.map(p => (
-              <div key={p.name} className="dash-product-row">
-                <div className="dash-product-info">
-                  <Package size={14} className="dash-icon-muted" />
-                  <span>{p.name}</span>
-                </div>
-                <span className="dash-product-count">{p.count} post{p.count !== 1 ? 's' : ''}</span>
+          <div className="card-title">Upcoming Posts</div>
+          <div className="dash-upcoming">
+            {upcoming.map((p, i) => (
+              <div key={i} className="dash-upcoming-row">
+                <div className="dash-upcoming-countdown">{formatCountdown(p.time)}</div>
+                <span className={`platform-badge ${p.platform.toLowerCase()}`}>{p.platform}</span>
+                <span style={{ fontSize: 13, fontWeight: 500 }}>{p.community}</span>
+                {p.productName && <span className="log-product-name">{p.productName}</span>}
+                <span className="dash-upcoming-time">{formatTime(p.time)}</span>
               </div>
             ))}
           </div>
