@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Shield, Key, Clock, Trash2, AlertTriangle, Zap, Check, X, Lock, ShieldCheck, Globe, BarChart2 } from 'lucide-react';
+import { Shield, Key, Clock, Trash2, AlertTriangle, Zap, Check, X, Lock, ShieldCheck, Globe, BarChart2, Download, Upload, Database } from 'lucide-react';
 import { getSafetySettings, saveSafetySettings } from '../lib/safety';
 import { testDiscordWebhook, testLinkedInToken, testRedditConnection, testTwitterConnection, getTwitterUsage } from '../lib/posting';
 
@@ -322,6 +322,202 @@ function CredentialsManager({ navigateTo }) {
   );
 }
 
+const BACKUP_KEYS = [
+  'postforge_communities', 'postforge_products', 'postforge_product', 'postforge_blocks',
+  'postforge_history', 'postforge_post_log', 'postforge_top_posts', 'postforge_engagement',
+  'postforge_voice', 'postforge_style_dna', 'postforge_settings', 'postforge_safety',
+  'postforge_rules', 'postforge_rules_log', 'postforge_templates', 'postforge_campaigns',
+  'postforge_approval_queue', 'postforge_launch_schedule', 'postforge_launch_history',
+  'postforge_manual_schedule', 'postforge_ab_results', 'postforge_custom_prompts',
+  'postforge_prompt_config', 'postforge_goals', 'postforge_recycler', 'postforge_schedule',
+  'postforge_smart', 'postforge_twitter_usage', 'postforge_last_post_dates',
+  'postforge_active_product_id', 'postforge_freshness_log', 'postforge_safety_log',
+];
+
+function DataManagement() {
+  const [importPreview, setImportPreview] = useState(null);
+  const [importError, setImportError] = useState('');
+  const [exportSuccess, setExportSuccess] = useState(false);
+  const [importing, setImporting] = useState(false);
+
+  const lastBackup = localStorage.getItem('postforge_last_backup');
+  const daysSinceBackup = lastBackup ? Math.floor((Date.now() - new Date(lastBackup).getTime()) / 86400000) : null;
+
+  const handleExport = () => {
+    const data = { _postforge_backup: true, version: 1, exportedAt: new Date().toISOString(), data: {} };
+    for (const key of BACKUP_KEYS) {
+      const val = localStorage.getItem(key);
+      if (val !== null) data.data[key] = val;
+    }
+    // Also grab any other postforge_ keys we might have missed
+    for (const key of Object.keys(localStorage)) {
+      if (key.startsWith('postforge_') && !data.data[key]) {
+        data.data[key] = localStorage.getItem(key);
+      }
+    }
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const dateStr = new Date().toISOString().split('T')[0];
+    a.href = url;
+    a.download = `postforge-backup-${dateStr}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    localStorage.setItem('postforge_last_backup', new Date().toISOString());
+    setExportSuccess(true);
+    setTimeout(() => setExportSuccess(false), 3000);
+  };
+
+  const handleFileSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImportError('');
+    setImportPreview(null);
+
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const parsed = JSON.parse(ev.target.result);
+        if (!parsed._postforge_backup || !parsed.data) {
+          setImportError('Invalid backup file — please use a PostForge backup.');
+          return;
+        }
+        // Count items
+        const communities = parsed.data.postforge_communities ? JSON.parse(parsed.data.postforge_communities).length : 0;
+        const products = parsed.data.postforge_products ? JSON.parse(parsed.data.postforge_products).length : 0;
+        const posts = parsed.data.postforge_history ? JSON.parse(parsed.data.postforge_history).length : 0;
+        const keys = Object.keys(parsed.data).length;
+        setImportPreview({ parsed, communities, products, posts, keys, date: parsed.exportedAt });
+      } catch {
+        setImportError('Invalid backup file — could not parse JSON.');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
+  const handleImport = () => {
+    if (!importPreview) return;
+    setImporting(true);
+    // Clear existing postforge data
+    for (const key of Object.keys(localStorage)) {
+      if (key.startsWith('postforge_')) localStorage.removeItem(key);
+    }
+    // Write backup data
+    for (const [key, value] of Object.entries(importPreview.parsed.data)) {
+      localStorage.setItem(key, value);
+    }
+    localStorage.setItem('postforge_last_backup', new Date().toISOString());
+    setTimeout(() => window.location.reload(), 500);
+  };
+
+  return (
+    <div>
+      {/* Backup reminder */}
+      {(daysSinceBackup === null || daysSinceBackup >= 30) && (
+        <div className="dm-reminder">
+          <AlertTriangle size={14} />
+          {daysSinceBackup === null
+            ? "You've never backed up your data — export a backup to protect your work."
+            : `Your last backup was ${daysSinceBackup} days ago — export a fresh backup to protect your data.`
+          }
+        </div>
+      )}
+
+      {/* Export */}
+      <div className="card">
+        <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Download size={16} /> Export All Data
+        </div>
+        <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 12 }}>
+          Download a complete backup of all your PostForge data — communities, products, history, engagement, settings, and more.
+        </p>
+        <button className="btn btn-primary" onClick={handleExport}>
+          <Download size={14} /> Export Backup
+        </button>
+        {exportSuccess && <span className="status-msg" style={{ marginLeft: 12 }}>Backup downloaded successfully!</span>}
+        {lastBackup && (
+          <div style={{ marginTop: 8, fontSize: 12, color: 'var(--muted)' }}>
+            Last backed up: {new Date(lastBackup).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+          </div>
+        )}
+      </div>
+
+      {/* Import */}
+      <div className="card">
+        <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Upload size={16} /> Import Data
+        </div>
+        <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 12 }}>
+          Restore from a PostForge backup file. This will replace all current data.
+        </p>
+        <label className="btn btn-secondary" style={{ cursor: 'pointer' }}>
+          <Upload size={14} /> Select Backup File
+          <input type="file" accept=".json" onChange={handleFileSelect} style={{ display: 'none' }} />
+        </label>
+
+        {importError && (
+          <div style={{ marginTop: 10, fontSize: 13, color: 'var(--danger)', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <X size={14} /> {importError}
+          </div>
+        )}
+
+        {importPreview && (
+          <div className="dm-import-preview">
+            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Backup Preview</div>
+            <div className="dm-preview-stats">
+              <span>{importPreview.products} products</span>
+              <span>{importPreview.communities} communities</span>
+              <span>{importPreview.posts} posts</span>
+              <span>{importPreview.keys} data keys</span>
+            </div>
+            {importPreview.date && (
+              <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 10 }}>
+                Exported on {new Date(importPreview.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+              </div>
+            )}
+            <div style={{ padding: 8, background: 'rgba(239, 68, 68, 0.06)', borderRadius: 6, fontSize: 12, color: 'var(--danger)', marginBottom: 10 }}>
+              <AlertTriangle size={12} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+              Import will replace your current data. This cannot be undone.
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className="btn btn-danger" onClick={handleImport} disabled={importing}>
+                {importing ? <span className="spinner" /> : <Upload size={14} />}
+                {importing ? 'Importing...' : 'Import and replace all data'}
+              </button>
+              <button className="btn btn-secondary" onClick={() => setImportPreview(null)}>Cancel</button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Storage info */}
+      <div className="card">
+        <div className="card-title">Storage Usage</div>
+        <div className="dm-storage-list">
+          {(() => {
+            const items = [];
+            for (const key of Object.keys(localStorage).filter(k => k.startsWith('postforge_')).sort()) {
+              const val = localStorage.getItem(key) || '';
+              const kb = (val.length / 1024).toFixed(1);
+              items.push({ key: key.replace('postforge_', ''), size: kb });
+            }
+            return items.map(i => (
+              <div key={i.key} className="dm-storage-row">
+                <span className="dm-storage-key">{i.key}</span>
+                <span className="dm-storage-size">{i.size} KB</span>
+              </div>
+            ));
+          })()}
+        </div>
+        <div style={{ marginTop: 8, fontSize: 12, color: 'var(--muted)' }}>
+          Total: {(Object.keys(localStorage).filter(k => k.startsWith('postforge_')).reduce((s, k) => s + (localStorage.getItem(k) || '').length, 0) / 1024).toFixed(1)} KB
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SafetyConfig() {
   const [safety, setSafety] = useState(getSafetySettings());
 
@@ -446,6 +642,9 @@ export default function Settings({ navigateTo }) {
         <button className={`tab-btn ${tab === 'safety' ? 'tab-active' : ''}`} onClick={() => setTab('safety')}>
           <ShieldCheck size={14} /> Posting Safety
         </button>
+        <button className={`tab-btn ${tab === 'data' ? 'tab-active' : ''}`} onClick={() => setTab('data')}>
+          <Database size={14} /> Data Management
+        </button>
       </div>
 
       {tab === 'general' && (
@@ -534,6 +733,8 @@ export default function Settings({ navigateTo }) {
       {tab === 'credentials' && <CredentialsManager navigateTo={navigateTo} />}
 
       {tab === 'safety' && <SafetyConfig />}
+
+      {tab === 'data' && <DataManagement />}
 
       {saved && <div style={{ position: 'fixed', bottom: 20, right: 20, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 16px', fontSize: 13, color: 'var(--success)', fontWeight: 500 }}>Settings saved</div>}
     </div>

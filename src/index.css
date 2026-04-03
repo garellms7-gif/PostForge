@@ -2597,6 +2597,68 @@ body {
   white-space: pre-wrap;
 }
 
+/* ===== Data Management ===== */
+.dm-reminder {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: rgba(234, 179, 8, 0.06);
+  border: 1px solid rgba(234, 179, 8, 0.2);
+  border-radius: 8px;
+  font-size: 13px;
+  color: #eab308;
+  margin-bottom: 16px;
+}
+
+.dm-import-preview {
+  margin-top: 12px;
+  padding: 14px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.dm-preview-stats {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.dm-storage-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.dm-storage-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.dm-storage-row:nth-child(odd) {
+  background: var(--bg);
+}
+
+.dm-storage-key {
+  color: var(--text);
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 11px;
+}
+
+.dm-storage-size {
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
 /* ===== Freshness Guard ===== */
 .fg-log {
   display: flex;
