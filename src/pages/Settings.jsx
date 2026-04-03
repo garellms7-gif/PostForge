@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Shield, Key, Clock, Trash2, AlertTriangle, Zap, Check, X, Lock, ShieldCheck, Globe } from 'lucide-react';
+import { Shield, Key, Clock, Trash2, AlertTriangle, Zap, Check, X, Lock, ShieldCheck, Globe, BarChart2 } from 'lucide-react';
 import { getSafetySettings, saveSafetySettings } from '../lib/safety';
 import { testDiscordWebhook, testLinkedInToken, testRedditConnection, testTwitterConnection, getTwitterUsage } from '../lib/posting';
 
@@ -481,6 +481,23 @@ export default function Settings({ navigateTo }) {
               <label className="form-label">Default Time</label>
               <input className="form-input" type="time" value={settings.defaultPostTime} onChange={e => update('defaultPostTime', e.target.value)} />
             </div>
+          </div>
+
+          <div className="card">
+            <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}><BarChart2 size={16} />Engagement Tracker</div>
+            <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 12 }}>Get reminded to log engagement data on recent posts.</p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 12 }}>
+              <div className="toggle-wrapper" onClick={() => update('engagementReminder', !settings.engagementReminder)} style={{ marginLeft: 0 }}>
+                <div className={`toggle ${settings.engagementReminder ? 'toggle-on' : ''}`}><div className="toggle-knob" /></div>
+                <span className="toggle-label">{settings.engagementReminder ? 'Enabled' : 'Disabled'}</span>
+              </div>
+            </div>
+            {settings.engagementReminder && (
+              <div className="form-group" style={{ maxWidth: 200 }}>
+                <label className="form-label">Remind after X hours</label>
+                <input className="form-input" type="number" min="1" max="72" value={settings.engagementReminderHours || 24} onChange={e => update('engagementReminderHours', Number(e.target.value) || 24)} />
+              </div>
+            )}
           </div>
 
           <div className="card">

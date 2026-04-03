@@ -2406,6 +2406,114 @@ body {
   flex-shrink: 0;
 }
 
+/* ===== Engagement Tracking ===== */
+.eng-form {
+  margin-top: 8px;
+  padding: 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.eng-form-metrics {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.eng-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+  min-width: 80px;
+}
+
+.eng-badge-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.eng-total {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.eng-perf {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 4px;
+}
+
+.eng-perf-top {
+  background: rgba(234, 179, 8, 0.15);
+  color: #eab308;
+}
+
+.eng-perf-good {
+  background: rgba(34, 197, 94, 0.12);
+  color: var(--success);
+}
+
+.eng-perf-avg {
+  background: rgba(113, 113, 122, 0.12);
+  color: var(--muted);
+}
+
+.eng-perf-low {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--danger);
+}
+
+.eng-sentiment {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 7px;
+  border-radius: 4px;
+}
+
+.eng-sent-positive {
+  background: rgba(34, 197, 94, 0.1);
+  color: var(--success);
+}
+
+.eng-sent-neutral {
+  background: rgba(113, 113, 122, 0.1);
+  color: var(--muted);
+}
+
+.eng-sent-negative {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--danger);
+}
+
+.eng-sent-mixed {
+  background: rgba(234, 179, 8, 0.1);
+  color: #eab308;
+}
+
+.eng-reminder {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: rgba(99, 102, 241, 0.06);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--text);
+  margin-bottom: 16px;
+}
+
+.eng-reminder svg {
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
 /* ===== Repurpose Engine ===== */
 .rp-overlay {
   position: fixed;
