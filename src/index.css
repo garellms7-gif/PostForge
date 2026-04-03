@@ -2401,6 +2401,133 @@ body {
   flex-shrink: 0;
 }
 
+/* ===== Rules Engine ===== */
+.re-templates {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.re-template-card {
+  padding: 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.re-form {
+  padding: 16px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.re-form-sections {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.re-form-section {
+  flex: 1;
+  padding: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.re-section-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 8px;
+}
+
+.re-arrow {
+  font-size: 20px;
+  color: var(--muted);
+  padding-top: 30px;
+  flex-shrink: 0;
+}
+
+.re-rules-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.re-rule-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 18px;
+}
+
+.re-rule-inactive {
+  opacity: 0.5;
+}
+
+.re-rule-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 8px;
+}
+
+.re-rule-name {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.re-rule-desc {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.re-rule-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.re-log {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.re-log-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  background: var(--bg);
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.re-log-time {
+  color: var(--muted);
+  flex-shrink: 0;
+  width: 110px;
+}
+
+.re-log-rule {
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.re-log-action {
+  color: var(--muted);
+  margin-left: auto;
+}
+
 /* ===== Recurring Templates ===== */
 .rt-form {
   padding: 16px;

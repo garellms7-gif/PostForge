@@ -6,6 +6,7 @@ import { getSafetyLog } from '../lib/safety';
 import OptimalTiming from '../components/OptimalTiming';
 import PostQueue from '../components/PostQueue';
 import RecurringTemplates from '../components/RecurringTemplates';
+import RulesEngine from '../components/RulesEngine';
 
 const MODES = [
   { id: 'instant', label: 'Instant Mode', icon: Zap, desc: 'Send now to all enabled communities' },
@@ -433,6 +434,13 @@ export default function Automation() {
             return tLen > 0 ? <span className="tab-count">{tLen}</span> : null;
           })()}
         </button>
+        <button className={`tab-btn ${view === 'rules' ? 'tab-active' : ''}`} onClick={() => setView('rules')}>
+          Rules
+          {(() => {
+            const rLen = JSON.parse(localStorage.getItem('postforge_rules') || '[]').filter(r => r.active).length;
+            return rLen > 0 ? <span className="tab-count">{rLen}</span> : null;
+          })()}
+        </button>
         <button className={`tab-btn ${view === 'queue' ? 'tab-active' : ''}`} onClick={() => setView('queue')}>
           Post Queue
           {(() => {
@@ -444,6 +452,7 @@ export default function Automation() {
 
       {view === 'queue' && <PostQueue />}
       {view === 'templates' && <RecurringTemplates />}
+      {view === 'rules' && <RulesEngine />}
 
       {view === 'modes' && <>
       {/* Mode selector */}
