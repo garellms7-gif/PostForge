@@ -8,6 +8,7 @@ import { scorePost } from '../lib/scorer';
 import RewriteAssistant from '../components/RewriteAssistant';
 import PromptBuilder, { getCustomPromptConfig, DEFAULT_SYSTEM_PROMPT } from '../components/PromptBuilder';
 import { buildPostingSettingsContext } from '../components/AdvancedPostingSettings';
+import { buildStyleProfileContext } from '../lib/styleDNA';
 
 function getTopPosts() {
   return JSON.parse(localStorage.getItem('postforge_top_posts') || '[]');
@@ -86,6 +87,9 @@ function generateForCommunity(product, community, tone, postType, blocks) {
   // Inject per-community posting settings
   const postingCtx = buildPostingSettingsContext(community);
   if (postingCtx) post += postingCtx;
+  // Inject community Style Profile
+  const styleCtx = buildStyleProfileContext(community?.name || '');
+  if (styleCtx) post += styleCtx;
   const topPosts = getTopPostsForCommunity(community?.name || '');
   if (topPosts.length > 0) post += buildTopPostsSection(topPosts);
   return post;

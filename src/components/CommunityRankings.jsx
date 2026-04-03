@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
-import { Trophy, TrendingUp, TrendingDown, Minus, ChevronDown, ChevronUp, Clock, Calendar } from 'lucide-react';
+import { Trophy, TrendingUp, TrendingDown, Minus, ChevronDown, ChevronUp, Clock, Calendar, Sparkles } from 'lucide-react';
 import { calculateRawScore } from '../lib/scoring';
+import { buildCommunityStyleProfile } from '../lib/styleDNA';
 
 function getHistory() { return JSON.parse(localStorage.getItem('postforge_history') || '[]'); }
 function getEngagement() { return JSON.parse(localStorage.getItem('postforge_engagement') || '{}'); }
@@ -121,6 +122,7 @@ export default function CommunityRankings({ community }) {
 
   const best = data.ranked[0];
   const worst = data.ranked.filter(r => r.count > 0).slice(-1)[0];
+  const styleProfile = buildCommunityStyleProfile(community.name);
 
   return (
     <div className="cr-container">
@@ -151,6 +153,28 @@ export default function CommunityRankings({ community }) {
           </div>
         )}
       </div>
+
+      {/* Style Profile - What works here */}
+      {styleProfile && styleProfile.sampleSize >= 2 && (
+        <div className="cr-style-card">
+          <div className="cr-style-title"><Sparkles size={13} /> What Works in {community.name}</div>
+          <div className="cr-style-subtitle">Based on {styleProfile.sampleSize} high-performing posts</div>
+          <div className="cr-style-grid">
+            <div className="cr-style-item"><span className="cr-style-label">Opening</span><span className="cr-style-value">{styleProfile.bestOpening}</span></div>
+            <div className="cr-style-item"><span className="cr-style-label">Sentences</span><span className="cr-style-value">{styleProfile.bestSentenceStyle}</span></div>
+            <div className="cr-style-item"><span className="cr-style-label">Energy</span><span className="cr-style-value">{styleProfile.bestEnergy}</span></div>
+            <div className="cr-style-item"><span className="cr-style-label">Structure</span><span className="cr-style-value">{styleProfile.bestStructure}</span></div>
+            <div className="cr-style-item"><span className="cr-style-label">Personal</span><span className="cr-style-value">{styleProfile.bestPersonalLevel}</span></div>
+            <div className="cr-style-item"><span className="cr-style-label">CTA</span><span className="cr-style-value">{styleProfile.bestCtaStyle}</span></div>
+          </div>
+          {styleProfile.topAuthenticityMarkers.length > 0 && (
+            <div style={{ marginTop: 8 }}>
+              <span style={{ fontSize: 11, color: 'var(--muted)' }}>What makes it land: </span>
+              <span style={{ fontSize: 11, color: 'var(--success)' }}>{styleProfile.topAuthenticityMarkers.join(' · ')}</span>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Leaderboard */}
       <div className="cr-leaderboard">

@@ -3,6 +3,7 @@ import { Trash2, Copy, Clock, Star, Sparkles, Recycle, RefreshCw, BarChart2, Ale
 import { UndoToast } from '../components/UxHelpers';
 import RepurposeEngine from '../components/RepurposeEngine';
 import { calculateRawScore, calculateEngagementScore, getScoreColor, getScoreLabel } from '../lib/scoring';
+import { maybeExtractStyleDNA } from '../lib/styleDNA';
 
 function getTopPosts() { return JSON.parse(localStorage.getItem('postforge_top_posts') || '[]'); }
 function saveTopPosts(posts) { localStorage.setItem('postforge_top_posts', JSON.stringify(posts)); }
@@ -67,6 +68,11 @@ function EngagementForm({ post, onSave, onCancel }) {
     const data = getEngagement();
     data[post.id] = { ...form, _community: post.community, _platform: platform };
     saveEngagement(data);
+    // Auto-extract Style DNA for high-scoring posts
+    const score = calculateEngagementScore(platform, { ...form, _platform: platform }, post.community);
+    if (score >= 70 && post.content) {
+      maybeExtractStyleDNA(post.id, post.content, post.community, score).catch(() => {});
+    }
     onSave();
   };
 
@@ -180,7 +186,15 @@ export default function History({ navigateTo }) {
 
   const handleClearAll = () => { setHistory([]); localStorage.removeItem('postforge_history'); };
   const handleCopy = (content, id) => { navigator.clipboard.writeText(content); setCopiedId(id); setTimeout(() => setCopiedId(null), 2000); };
-  const handleToggleStar = (item) => { const starred = topPosts.some(t => t.id === item.id); const updated = starred ? topPosts.filter(t => t.id !== item.id) : [item, ...topPosts]; setTopPosts(updated); saveTopPosts(updated); };
+  const handleToggleStar = (item) => {
+    const starred = topPosts.some(t => t.id === item.id);
+    const updated = starred ? topPosts.filter(t => t.id !== item.id) : [item, ...topPosts];
+    setTopPosts(updated); saveTopPosts(updated);
+    // Extract Style DNA when marking as high performer
+    if (!starred && item.content && item.community) {
+      maybeExtractStyleDNA(item.id, item.content, item.community, 100).catch(() => {});
+    }
+  };
   const handleRemoveFromTop = (id) => { const updated = topPosts.filter(t => t.id !== id); setTopPosts(updated); saveTopPosts(updated); };
   const handleUseAsInspiration = (item) => { if (navigateTo) navigateTo('generator', { communityName: item.community }); };
   const isStarred = (id) => topPosts.some(t => t.id === id);

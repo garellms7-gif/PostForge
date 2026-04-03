@@ -2597,6 +2597,58 @@ body {
   white-space: pre-wrap;
 }
 
+/* Style Profile card in Rankings */
+.cr-style-card {
+  padding: 14px;
+  background: rgba(99, 102, 241, 0.04);
+  border: 1px solid rgba(99, 102, 241, 0.15);
+  border-radius: 10px;
+  margin-bottom: 14px;
+}
+
+.cr-style-title {
+  font-size: 13px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--accent);
+  margin-bottom: 2px;
+}
+
+.cr-style-subtitle {
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+
+.cr-style-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.cr-style-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 8px;
+  background: var(--surface);
+  border-radius: 6px;
+}
+
+.cr-style-label {
+  font-size: 10px;
+  color: var(--muted);
+}
+
+.cr-style-value {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  text-transform: capitalize;
+}
+
 /* ===== Engagement Tracking ===== */
 .eng-form {
   margin-top: 8px;
