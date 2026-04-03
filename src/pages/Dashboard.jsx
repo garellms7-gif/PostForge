@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Flame, Calendar, Send, Users, Clock, Check, X, Package, Timer } from 'lucide-react';
 import { getScheduledPosts } from '../lib/scheduler';
+import GoalTracker from '../components/GoalTracker';
 
 function getHistory() { return JSON.parse(localStorage.getItem('postforge_history') || '[]'); }
 function getPostLog() { return JSON.parse(localStorage.getItem('postforge_post_log') || '[]'); }
@@ -247,6 +248,12 @@ export default function Dashboard({ navigateTo }) {
             {navigateTo && <button className="btn btn-primary btn-sm" style={{ marginTop: 10 }} onClick={() => navigateTo('generator')}>Go to Generator</button>}
           </div>
         )}
+      </div>
+
+      {/* My Goals */}
+      <div className="card">
+        <div className="card-title">My Goals</div>
+        <GoalTracker />
       </div>
 
       {/* Section 6 — Upcoming Posts */}
