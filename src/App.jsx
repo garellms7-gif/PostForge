@@ -11,6 +11,7 @@ import History from './pages/History';
 import Automation from './pages/Automation';
 import ContentCalendar from './pages/ContentCalendar';
 import Settings from './pages/Settings';
+import { UndoManager } from './components/UndoManager';
 
 const PAGE_COMPONENTS = {
   dashboard: Dashboard,
@@ -169,6 +170,8 @@ export default function App() {
         )}
         <PageComponent navigateTo={navigateTo} navPayload={navPayload} simpleMode={simpleMode} />
       </main>
+
+      <UndoManager />
 
       {/* Advanced mode hint */}
       {showHint && (

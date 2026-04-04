@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Save, Plus, Trash2, Package, Power, BarChart2, Search, X, ChevronDown } from 'lucide-react';
 import { generatePost, resolveActiveBlocks } from '../lib/generatePost';
 import { postToPlatform } from '../lib/posting';
-import { UndoToast } from '../components/UxHelpers';
+import { showUndoToast } from '../components/UndoManager';
 import MyVoice from '../components/MyVoice';
 import ProductAnalytics from '../components/ProductAnalytics';
 
@@ -63,7 +63,7 @@ export default function ProductHub({ simpleMode }) {
   const [activeProductId, setActiveProductId] = useState(null);
   const [products, setProducts] = useState([]);
   const [saved, setSaved] = useState(false);
-  const [undoProduct, setUndoProduct] = useState(null);
+  // removed undoProduct state — using global UndoManager
   const [analyticsProduct, setAnalyticsProduct] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
@@ -197,15 +197,11 @@ export default function ProductHub({ simpleMode }) {
       setActiveProductId(null);
       localStorage.removeItem('postforge_active_product_id');
     }
-    setUndoProduct(item);
-  };
-
-  const handleUndoDeleteProduct = () => {
-    if (!undoProduct) return;
-    const updated = [...products, undoProduct];
-    saveProducts(updated);
-    setProducts(updated);
-    setUndoProduct(null);
+    showUndoToast(`"${item?.name || 'Product'}" deleted`, () => {
+      const restored = [...products, item];
+      saveProducts(restored);
+      setProducts(restored);
+    });
   };
 
   // Multiple products can be active simultaneously
@@ -514,14 +510,6 @@ export default function ProductHub({ simpleMode }) {
       {/* Product Analytics Panel */}
       {analyticsProduct && (
         <ProductAnalytics product={analyticsProduct} onClose={() => setAnalyticsProduct(null)} />
-      )}
-
-      {undoProduct && (
-        <UndoToast
-          key={undoProduct.id}
-          message={`"${undoProduct.name || 'Product'}" deleted`}
-          onUndo={handleUndoDeleteProduct}
-        />
       )}
     </div>
   );

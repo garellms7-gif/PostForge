@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Trash2, Copy, Clock, Star, Sparkles, Recycle, RefreshCw, BarChart2, AlertCircle, Save } from 'lucide-react';
-import { UndoToast } from '../components/UxHelpers';
+import { showUndoToast, showTypeConfirm } from '../components/UndoManager';
 import RepurposeEngine from '../components/RepurposeEngine';
 import { calculateRawScore, calculateEngagementScore, getScoreColor, getScoreLabel } from '../lib/scoring';
 import { maybeExtractStyleDNA } from '../lib/styleDNA';
@@ -152,7 +152,6 @@ export default function History({ navigateTo, simpleMode }) {
   const [topPosts, setTopPosts] = useState([]);
   const [copiedId, setCopiedId] = useState(null);
   const [tab, setTab] = useState('all');
-  const [undoItem, setUndoItem] = useState(null);
   const [repurposePost, setRepurposePost] = useState(null);
   const [engagementFormId, setEngagementFormId] = useState(null);
   const [engagementVersion, setEngagementVersion] = useState(0);
@@ -173,18 +172,17 @@ export default function History({ navigateTo, simpleMode }) {
     localStorage.setItem('postforge_history', JSON.stringify(updated));
     const updatedTop = topPosts.filter(t => t.id !== id);
     setTopPosts(updatedTop); saveTopPosts(updatedTop);
-    setUndoItem(item);
+    showUndoToast('Post deleted', () => {
+      const restored = [item, ...history];
+      setHistory(restored);
+      localStorage.setItem('postforge_history', JSON.stringify(restored));
+    });
   };
 
-  const handleUndoDelete = () => {
-    if (!undoItem) return;
-    const updated = [undoItem, ...history];
-    setHistory(updated);
-    localStorage.setItem('postforge_history', JSON.stringify(updated));
-    setUndoItem(null);
+  const handleClearAll = async () => {
+    const confirmed = await showTypeConfirm('This will permanently delete all post history. This cannot be undone.');
+    if (confirmed) { setHistory([]); localStorage.removeItem('postforge_history'); }
   };
-
-  const handleClearAll = () => { setHistory([]); localStorage.removeItem('postforge_history'); };
   const handleCopy = (content, id) => { navigator.clipboard.writeText(content); setCopiedId(id); setTimeout(() => setCopiedId(null), 2000); };
   const handleToggleStar = (item) => {
     const starred = topPosts.some(t => t.id === item.id);
@@ -304,7 +302,6 @@ export default function History({ navigateTo, simpleMode }) {
       )}
 
       {repurposePost && <RepurposeEngine post={repurposePost} onClose={() => { setRepurposePost(null); setHistory(JSON.parse(localStorage.getItem('postforge_history') || '[]')); }} />}
-      {undoItem && <UndoToast key={undoItem.id} message="Post deleted" onUndo={handleUndoDelete} />}
     </div>
   );
 }

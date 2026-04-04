@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Shield, Key, Clock, Trash2, AlertTriangle, Zap, Check, X, Lock, ShieldCheck, Globe, BarChart2, Download, Upload, Database, HeartPulse, Sparkles } from 'lucide-react';
 import { getSafetySettings, saveSafetySettings } from '../lib/safety';
 import { runHealthCheck, resetKey } from '../lib/safeStorage';
+import { showTypeConfirm } from '../components/UndoManager';
 import { testDiscordWebhook, testLinkedInToken, testRedditConnection, testTwitterConnection, getTwitterUsage } from '../lib/posting';
 import { getCredentialHealth, getLastTestResult, recordSuccess, recordTestFailure, needsTest } from '../lib/credentialExpiry';
 
@@ -662,7 +663,6 @@ export default function Settings({ navigateTo }) {
   const [tab, setTab] = useState('general');
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [saved, setSaved] = useState(false);
-  const [confirmClear, setConfirmClear] = useState(false);
   const [cleared, setCleared] = useState(false);
 
   useEffect(() => {
@@ -677,11 +677,11 @@ export default function Settings({ navigateTo }) {
     setTimeout(() => setSaved(false), 1500);
   };
 
-  const handleClearAll = () => {
-    if (!confirmClear) { setConfirmClear(true); return; }
+  const handleClearAll = async () => {
+    const confirmed = await showTypeConfirm('This will permanently delete ALL PostForge data including products, communities, history, and settings. This cannot be undone.');
+    if (!confirmed) return;
     const keys = Object.keys(localStorage).filter(k => k.startsWith('postforge_'));
     keys.forEach(k => localStorage.removeItem(k));
-    setConfirmClear(false);
     setCleared(true);
     setSettings(DEFAULT_SETTINGS);
     setTimeout(() => setCleared(false), 3000);
@@ -797,15 +797,9 @@ export default function Settings({ navigateTo }) {
             <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--danger)' }}><Trash2 size={16} />Clear All Data</div>
             <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 16 }}>Permanently delete all PostForge data.</p>
             {!cleared ? (
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <button className="btn btn-danger" onClick={handleClearAll}>
-                  <Trash2 size={14} />{confirmClear ? 'Yes, delete everything' : 'Clear All Data'}
-                </button>
-                {confirmClear && (<>
-                  <button className="btn btn-secondary btn-sm" onClick={() => setConfirmClear(false)}>Cancel</button>
-                  <span style={{ fontSize: 13, color: 'var(--danger)' }}><AlertTriangle size={14} style={{ verticalAlign: '-2px', marginRight: 4 }} />This cannot be undone!</span>
-                </>)}
-              </div>
+              <button className="btn btn-danger" onClick={handleClearAll}>
+                <Trash2 size={14} /> Clear All Data
+              </button>
             ) : <p style={{ fontSize: 13, color: 'var(--success)', fontWeight: 500 }}>All data cleared.</p>}
           </div>
         </>

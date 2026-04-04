@@ -3,7 +3,7 @@ import { Plus, Trash2, Users, ChevronDown, ChevronUp, Zap, HelpCircle, ExternalL
 import { getCommunityHealth, daysSinceLastPost } from '../lib/health';
 import { getCredentialHealth } from '../lib/credentialExpiry';
 import { testDiscordWebhook, testLinkedInToken, testRedditConnection, testTwitterConnection, getTwitterUsage } from '../lib/posting';
-import { UndoToast } from '../components/UxHelpers';
+import { showUndoToast } from '../components/UndoManager';
 import AdvancedPostingSettings from '../components/AdvancedPostingSettings';
 import CommunityRankings from '../components/CommunityRankings';
 
@@ -467,7 +467,6 @@ export default function Communities({ simpleMode }) {
   const [platform, setPlatform] = useState('Discord');
   const [expandedId, setExpandedId] = useState(null);
   const [settingsTab, setSettingsTab] = useState('settings');
-  const [undoItem, setUndoItem] = useState(null);
 
   useEffect(() => {
     const data = localStorage.getItem('postforge_communities');
@@ -500,13 +499,7 @@ export default function Communities({ simpleMode }) {
     const updated = communities.filter(c => c.id !== id);
     save(updated);
     if (expandedId === id) setExpandedId(null);
-    setUndoItem(item);
-  };
-
-  const handleUndoDelete = () => {
-    if (!undoItem) return;
-    save([...communities, undoItem]);
-    setUndoItem(null);
+    showUndoToast(`"${item?.name}" deleted`, () => save([...communities, item]));
   };
 
   const updateCommunity = (id, updates) => {
@@ -732,13 +725,6 @@ export default function Communities({ simpleMode }) {
         )}
       </div>
 
-      {undoItem && (
-        <UndoToast
-          key={undoItem.id}
-          message={`"${undoItem.name}" deleted`}
-          onUndo={handleUndoDelete}
-        />
-      )}
     </div>
   );
 }
