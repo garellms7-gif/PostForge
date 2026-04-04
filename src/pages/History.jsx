@@ -147,7 +147,7 @@ function EngagementBadge({ postId, community, platform }) {
   );
 }
 
-export default function History({ navigateTo }) {
+export default function History({ navigateTo, simpleMode }) {
   const [history, setHistory] = useState([]);
   const [topPosts, setTopPosts] = useState([]);
   const [copiedId, setCopiedId] = useState(null);
@@ -252,7 +252,7 @@ export default function History({ navigateTo }) {
             </div>
 
             {/* Engagement badge */}
-            <EngagementBadge key={engagementVersion} postId={item.id} community={item.community} platform={item.platform} />
+            {!simpleMode && <EngagementBadge key={engagementVersion} postId={item.id} community={item.community} platform={item.platform} />}
 
             <div className="history-preview">{item.content}</div>
 
@@ -265,7 +265,7 @@ export default function History({ navigateTo }) {
               <button className="btn btn-secondary btn-sm" onClick={() => handleCopy(item.content, item.id)}>
                 <Copy size={14} /> {copiedId === item.id ? 'Copied!' : 'Copy'}
               </button>
-              {tab === 'all' && (
+              {tab === 'all' && !simpleMode && (
                 <button className="btn btn-secondary btn-sm" onClick={() => setEngagementFormId(engagementFormId === item.id ? null : item.id)}>
                   <BarChart2 size={13} /> {engagementFormId === item.id ? 'Close' : 'Add Engagement'}
                 </button>

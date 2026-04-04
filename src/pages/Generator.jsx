@@ -110,7 +110,7 @@ function computeInsights(results) {
   return `${topTone} tone posts outperform ${sorted[1][0]} tone posts ${pct}% of the time for your products`;
 }
 
-export default function Generator({ navPayload }) {
+export default function Generator({ navPayload, simpleMode }) {
   const [communities, setCommunities] = useState([]);
   const [product, setProduct] = useState({});
   const [blocks, setBlocks] = useState(null);
@@ -352,7 +352,7 @@ export default function Generator({ navPayload }) {
         )}
 
         {/* Prompt Builder */}
-        <PromptBuilder onConfigChange={setPromptConfig} />
+        {!simpleMode && <PromptBuilder onConfigChange={setPromptConfig} />}
 
         <div style={{ marginTop: 20, display: 'flex', gap: 12, alignItems: 'center' }}>
           {!abMode ? (
@@ -366,10 +366,12 @@ export default function Generator({ navPayload }) {
               {generating ? 'Generating...' : 'Generate A/B Test'}
             </button>
           )}
-          <div className="toggle-wrapper" onClick={() => { setAbMode(!abMode); setOutputA(''); setOutputB(''); setOutput(''); setVoted(null); }} style={{ marginLeft: 4 }}>
-            <div className={`toggle ${abMode ? 'toggle-on' : ''}`}><div className="toggle-knob" /></div>
-            <span className="toggle-label">A/B Test</span>
-          </div>
+          {!simpleMode && (
+            <div className="toggle-wrapper" onClick={() => { setAbMode(!abMode); setOutputA(''); setOutputB(''); setOutput(''); setVoted(null); }} style={{ marginLeft: 4 }}>
+              <div className={`toggle ${abMode ? 'toggle-on' : ''}`}><div className="toggle-knob" /></div>
+              <span className="toggle-label">A/B Test</span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -405,7 +407,7 @@ export default function Generator({ navPayload }) {
             </button>
             {savedMsg && <span className="status-msg">{savedMsg}</span>}
           </div>
-          <RewriteAssistant content={output} onRewrite={(text) => { setOutput(text); setScores(null); scorePost(text, selectedComm?.name, selectedComm?.platform).then(setScores).catch(() => {}); }} />
+          {!simpleMode && <RewriteAssistant content={output} onRewrite={(text) => { setOutput(text); setScores(null); scorePost(text, selectedComm?.name, selectedComm?.platform).then(setScores).catch(() => {}); }} />}
         </div>
       )}
 

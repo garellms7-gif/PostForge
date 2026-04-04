@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Sparkles, Users, Package, Clock, Hammer, Send, BarChart2, Calendar, Settings as SettingsIcon, AlertCircle, X, AlertTriangle } from 'lucide-react';
+import { Sparkles, Users, Package, Clock, Hammer, Send, BarChart2, Calendar, Settings as SettingsIcon, AlertCircle, X, AlertTriangle, Rocket } from 'lucide-react';
 import { getUnresolvedCount } from './lib/failureLog';
+import { safeGet, safeSetRaw, safeGetRaw } from './lib/safeStorage';
 import Dashboard from './pages/Dashboard';
 import Generator from './pages/Generator';
 import Communities from './pages/Communities';
@@ -21,84 +22,95 @@ const PAGE_COMPONENTS = {
   settings: Settings,
 };
 
-const NAV_ITEMS = [
-  { id: 'dashboard', label: 'Dashboard', icon: BarChart2 },
+const ALL_NAV = [
+  { id: 'dashboard', label: 'Dashboard', icon: BarChart2, advanced: true },
   { id: 'generator', label: 'Generator', icon: Sparkles },
   { id: 'communities', label: 'Communities', icon: Users },
   { id: 'product', label: 'Product Hub', icon: Package },
-  { id: 'automation', label: 'Automation', icon: Send },
-  { id: 'calendar', label: 'Calendar', icon: Calendar },
+  { id: 'automation', label: 'Automation', icon: Send, advanced: true },
+  { id: 'calendar', label: 'Calendar', icon: Calendar, advanced: true },
   { id: 'history', label: 'History', icon: Clock },
-  { id: 'settings', label: 'Settings', icon: SettingsIcon },
+  { id: 'settings', label: 'Settings', icon: SettingsIcon, advanced: true },
 ];
 
+function getSimpleMode() {
+  const raw = safeGetRaw('postforge_simple_mode', null);
+  if (raw === null) return true; // Default on for new users
+  return raw === 'true';
+}
+
 function getLastActivityDate() {
-  // Check history and post log for most recent date
-  const history = JSON.parse(localStorage.getItem('postforge_history') || '[]');
-  const postLog = JSON.parse(localStorage.getItem('postforge_post_log') || '[]');
-  const dates = [
-    ...history.map(h => h.date),
-    ...postLog.map(l => l.date),
-  ].filter(Boolean).map(d => new Date(d).getTime());
+  const history = safeGet('postforge_history', []);
+  const postLog = safeGet('postforge_post_log', []);
+  const dates = [...history.map(h => h.date), ...postLog.map(l => l.date)].filter(Boolean).map(d => new Date(d).getTime());
   if (dates.length === 0) return null;
   return new Date(Math.max(...dates));
 }
 
 function getBurnoutSettings() {
-  const data = localStorage.getItem('postforge_settings');
-  if (!data) return { burnoutEnabled: true, burnoutDays: 7 };
-  const s = JSON.parse(data);
+  const s = safeGet('postforge_settings', {});
   return { burnoutEnabled: s.burnoutEnabled !== false, burnoutDays: s.burnoutDays || 7 };
 }
 
 function isDismissedToday() {
-  const dismissed = localStorage.getItem('postforge_burnout_dismissed');
-  if (!dismissed) return false;
-  return dismissed === new Date().toISOString().split('T')[0];
+  return safeGetRaw('postforge_burnout_dismissed', '') === new Date().toISOString().split('T')[0];
+}
+
+function shouldShowAdvancedHint() {
+  if (safeGetRaw('postforge_advanced_hint_dismissed', '') === 'true') return false;
+  const firstUse = safeGetRaw('postforge_first_use', null);
+  if (!firstUse) { safeSetRaw('postforge_first_use', new Date().toISOString()); return false; }
+  const daysSince = (Date.now() - new Date(firstUse).getTime()) / 86400000;
+  return daysSince >= 3;
 }
 
 export default function App() {
-  const [page, setPage] = useState('dashboard');
+  const [page, setPage] = useState('generator');
   const [navPayload, setNavPayload] = useState(null);
   const [showBurnout, setShowBurnout] = useState(false);
   const [inactiveDays, setInactiveDays] = useState(0);
   const [failureCount, setFailureCount] = useState(0);
+  const [simpleMode, setSimpleMode] = useState(getSimpleMode());
+  const [showHint, setShowHint] = useState(false);
 
   const navigateTo = (pageId, payload) => {
     setNavPayload(payload || null);
     setPage(pageId);
   };
 
-  // Check failures and burnout on mount/page change
   useEffect(() => {
     setFailureCount(getUnresolvedCount());
+    if (simpleMode && shouldShowAdvancedHint()) setShowHint(true);
+
     const { burnoutEnabled, burnoutDays } = getBurnoutSettings();
     if (!burnoutEnabled || isDismissedToday()) return;
-
     const lastActivity = getLastActivityDate();
     if (!lastActivity) return;
+    const days = Math.floor((Date.now() - lastActivity.getTime()) / 86400000);
+    if (days >= burnoutDays) { setInactiveDays(days); setShowBurnout(true); }
+  }, [page, simpleMode]);
 
-    const days = Math.floor((Date.now() - lastActivity.getTime()) / (1000 * 60 * 60 * 24));
-    if (days >= burnoutDays) {
-      setInactiveDays(days);
-      setShowBurnout(true);
-    }
-  }, [page]);
+  // Listen for simple mode changes from Settings
+  useEffect(() => {
+    const onStorage = () => setSimpleMode(getSimpleMode());
+    window.addEventListener('storage', onStorage);
+    const interval = setInterval(() => {
+      const current = getSimpleMode();
+      if (current !== simpleMode) setSimpleMode(current);
+    }, 1000);
+    return () => { window.removeEventListener('storage', onStorage); clearInterval(interval); };
+  }, [simpleMode]);
 
-  const handleDismissBurnout = () => {
-    localStorage.setItem('postforge_burnout_dismissed', new Date().toISOString().split('T')[0]);
-    setShowBurnout(false);
-  };
+  const handleDismissBurnout = () => { safeSetRaw('postforge_burnout_dismissed', new Date().toISOString().split('T')[0]); setShowBurnout(false); };
+  const handleGenerateCheckin = () => { setShowBurnout(false); safeSetRaw('postforge_burnout_dismissed', new Date().toISOString().split('T')[0]); navigateTo('generator', { checkin: true, postType: 'Tips & Value' }); };
+  const handleDismissHint = () => { safeSetRaw('postforge_advanced_hint_dismissed', 'true'); setShowHint(false); };
 
-  const handleGenerateCheckin = () => {
-    setShowBurnout(false);
-    localStorage.setItem('postforge_burnout_dismissed', new Date().toISOString().split('T')[0]);
-    navigateTo('generator', {
-      checkin: true,
-      postType: 'Tips & Value',
-      prefillContext: 'Quick check-in with the community — share where things are at this week',
-    });
-  };
+  const navItems = simpleMode ? ALL_NAV.filter(n => !n.advanced) : ALL_NAV;
+
+  // If current page is hidden in simple mode, redirect to generator
+  useEffect(() => {
+    if (simpleMode && ALL_NAV.find(n => n.id === page)?.advanced) setPage('generator');
+  }, [simpleMode, page]);
 
   const PageComponent = PAGE_COMPONENTS[page];
 
@@ -110,17 +122,22 @@ export default function App() {
           PostForge
         </div>
         <nav className="sidebar-nav">
-          {NAV_ITEMS.map(p => (
-            <button
-              key={p.id}
-              className={`sidebar-link ${page === p.id ? 'active' : ''}`}
-              onClick={() => navigateTo(p.id)}
-            >
+          {navItems.map(p => (
+            <button key={p.id} className={`sidebar-link ${page === p.id ? 'active' : ''}`} onClick={() => navigateTo(p.id)}>
               <p.icon size={18} />
               {p.label}
             </button>
           ))}
         </nav>
+        {/* Settings gear at bottom in simple mode */}
+        {simpleMode && (
+          <div className="sidebar-bottom">
+            <button className="sidebar-link" onClick={() => navigateTo('settings')} style={{ marginTop: 'auto' }}>
+              <SettingsIcon size={18} />
+              Settings
+            </button>
+          </div>
+        )}
       </aside>
       <main className="main-content">
         {failureCount > 0 && (
@@ -133,26 +150,28 @@ export default function App() {
           <div className="burnout-banner">
             <div className="burnout-banner-content">
               <AlertCircle size={18} />
-              <div>
-                <div className="burnout-banner-text">
-                  You haven't posted in <strong>{inactiveDays} days</strong>. Want PostForge to generate a quick check-in post?
-                </div>
-              </div>
+              <div><div className="burnout-banner-text">You haven't posted in <strong>{inactiveDays} days</strong>. Want PostForge to generate a quick check-in post?</div></div>
             </div>
             <div className="burnout-banner-actions">
-              <button className="btn btn-primary btn-sm" onClick={handleGenerateCheckin}>
-                <Sparkles size={14} />
-                Generate Check-in
-              </button>
-              <button className="btn btn-secondary btn-sm" onClick={handleDismissBurnout}>
-                <X size={14} />
-                Dismiss for today
-              </button>
+              <button className="btn btn-primary btn-sm" onClick={handleGenerateCheckin}><Sparkles size={14} /> Generate Check-in</button>
+              <button className="btn btn-secondary btn-sm" onClick={handleDismissBurnout}><X size={14} /> Dismiss for today</button>
             </div>
           </div>
         )}
-        <PageComponent navigateTo={navigateTo} navPayload={navPayload} />
+        <PageComponent navigateTo={navigateTo} navPayload={navPayload} simpleMode={simpleMode} />
       </main>
+
+      {/* Advanced mode hint */}
+      {showHint && (
+        <div className="sm-hint">
+          <Rocket size={16} />
+          <div>
+            <div style={{ fontWeight: 600, marginBottom: 2 }}>Ready for more?</div>
+            <div style={{ fontSize: 12, color: 'var(--muted)' }}>Turn off Simple Mode in Settings to unlock campaigns, analytics, automation, and more.</div>
+          </div>
+          <button className="sm-hint-dismiss" onClick={handleDismissHint}><X size={14} /></button>
+        </div>
+      )}
     </>
   );
 }

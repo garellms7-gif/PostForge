@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Shield, Key, Clock, Trash2, AlertTriangle, Zap, Check, X, Lock, ShieldCheck, Globe, BarChart2, Download, Upload, Database, HeartPulse } from 'lucide-react';
+import { Shield, Key, Clock, Trash2, AlertTriangle, Zap, Check, X, Lock, ShieldCheck, Globe, BarChart2, Download, Upload, Database, HeartPulse, Sparkles } from 'lucide-react';
 import { getSafetySettings, saveSafetySettings } from '../lib/safety';
 import { runHealthCheck, resetKey } from '../lib/safeStorage';
 import { testDiscordWebhook, testLinkedInToken, testRedditConnection, testTwitterConnection, getTwitterUsage } from '../lib/posting';
@@ -723,6 +723,29 @@ export default function Settings({ navigateTo }) {
 
       {tab === 'general' && (
         <>
+          {/* Simple Mode banner */}
+          <div className={`sm-banner ${localStorage.getItem('postforge_simple_mode') === 'false' ? 'sm-banner-advanced' : 'sm-banner-simple'}`}>
+            {localStorage.getItem('postforge_simple_mode') === 'false' ? 'Advanced Mode — all features enabled' : 'Simple Mode is on — showing essential features only'}
+          </div>
+
+          {/* Simple Mode toggle */}
+          <div className="card">
+            <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Sparkles size={16} />Interface Mode</div>
+            <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 12 }}>
+              Simple Mode hides advanced features for a cleaner experience. Turn it off to unlock all features.
+            </p>
+            <div className="toggle-wrapper" onClick={() => {
+              const current = localStorage.getItem('postforge_simple_mode');
+              const next = current === 'false' ? 'true' : 'false';
+              localStorage.setItem('postforge_simple_mode', next);
+              // Force re-render in App
+              window.dispatchEvent(new Event('storage'));
+            }} style={{ marginLeft: 0 }}>
+              <div className={`toggle ${localStorage.getItem('postforge_simple_mode') !== 'false' ? 'toggle-on' : ''}`}><div className="toggle-knob" /></div>
+              <span className="toggle-label">{localStorage.getItem('postforge_simple_mode') !== 'false' ? 'Simple Mode' : 'Advanced Mode'}</span>
+            </div>
+          </div>
+
           <div className="card">
             <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Shield size={16} />Burnout Protection</div>
             <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 16 }}>Get reminded when you haven't posted in a while.</p>

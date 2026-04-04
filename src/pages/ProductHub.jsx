@@ -57,7 +57,7 @@ function addLogEntry(entry) {
   savePostLog([entry, ...log].slice(0, 100));
 }
 
-export default function ProductHub() {
+export default function ProductHub({ simpleMode }) {
   const [tab, setTab] = useState('edit');
   const [product, setProduct] = useState(EMPTY_PRODUCT);
   const [activeProductId, setActiveProductId] = useState(null);
@@ -274,9 +274,9 @@ export default function ProductHub() {
           My Products
           {products.length > 0 && <span className="tab-count">{products.length}</span>}
         </button>
-        <button className={`tab-btn ${tab === 'voice' ? 'tab-active' : ''}`} onClick={() => setTab('voice')}>
+        {!simpleMode && <button className={`tab-btn ${tab === 'voice' ? 'tab-active' : ''}`} onClick={() => setTab('voice')}>
           My Voice
-        </button>
+        </button>}
       </div>
 
       {/* ===== Edit Product Tab ===== */}

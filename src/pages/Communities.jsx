@@ -460,7 +460,7 @@ function TwitterSetup({ community, onUpdateCredential }) {
   );
 }
 
-export default function Communities() {
+export default function Communities({ simpleMode }) {
   const [communities, setCommunities] = useState([]);
   const [name, setName] = useState('');
   const [platform, setPlatform] = useState('Discord');
@@ -613,14 +613,16 @@ export default function Communities() {
                   {isExpanded && (
                     <div className="community-settings">
                       {/* Sub-tabs: Settings / Rankings */}
-                      <div className="cr-subtabs">
-                        <button className={`cr-subtab ${settingsTab === 'settings' ? 'cr-subtab-active' : ''}`} onClick={() => setSettingsTab('settings')}>Settings</button>
-                        <button className={`cr-subtab ${settingsTab === 'rankings' ? 'cr-subtab-active' : ''}`} onClick={() => setSettingsTab('rankings')}>Rankings</button>
-                      </div>
+                      {!simpleMode && (
+                        <div className="cr-subtabs">
+                          <button className={`cr-subtab ${settingsTab === 'settings' ? 'cr-subtab-active' : ''}`} onClick={() => setSettingsTab('settings')}>Settings</button>
+                          <button className={`cr-subtab ${settingsTab === 'rankings' ? 'cr-subtab-active' : ''}`} onClick={() => setSettingsTab('rankings')}>Rankings</button>
+                        </div>
+                      )}
 
-                      {settingsTab === 'rankings' && <CommunityRankings community={c} />}
+                      {!simpleMode && settingsTab === 'rankings' && <CommunityRankings community={c} />}
 
-                      {settingsTab === 'settings' && <>
+                      {(simpleMode || settingsTab === 'settings') && <>
                       {/* Discord-specific setup */}
                       {isDiscord && (
                         <div style={{ marginBottom: 20 }}>
@@ -679,7 +681,7 @@ export default function Communities() {
                       </div>
 
                       {/* Block Overrides */}
-                      <div className="block-settings-section">
+                      {!simpleMode && <div className="block-settings-section">
                         <div className="form-label" style={{ marginBottom: 10, fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>
                           Block Overrides
                         </div>
@@ -703,8 +705,9 @@ export default function Communities() {
                         </div>
                       </div>
 
+                      }
                       {/* Advanced Posting Settings */}
-                      <AdvancedPostingSettings community={c} onUpdate={updateCommunity} />
+                      {!simpleMode && <AdvancedPostingSettings community={c} onUpdate={updateCommunity} />}
                       </>}
                     </div>
                   )}
