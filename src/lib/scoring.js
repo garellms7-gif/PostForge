@@ -2,6 +2,7 @@
  * Unified Engagement Scoring Engine
  * Normalizes engagement across platforms into a single 0-100 score.
  */
+import { safeGet, safeSet, safeSetRaw, safeGetRaw, safeRemove } from './safeStorage';
 
 const SENTIMENT_BONUS = { Positive: 10, Neutral: 0, Negative: -5, Mixed: 2 };
 
@@ -49,7 +50,7 @@ export function calculateRawScore(platform, metrics) {
  * Get all raw scores for a community from stored engagement data.
  */
 export function getCommunityScores(communityName) {
-  const engagement = JSON.parse(localStorage.getItem('postforge_engagement') || '{}');
+  const engagement = safeGet('postforge_engagement', {});
   const scores = [];
   for (const [, eng] of Object.entries(engagement)) {
     if (eng._community === communityName) {

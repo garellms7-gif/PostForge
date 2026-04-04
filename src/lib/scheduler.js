@@ -1,6 +1,7 @@
 /**
  * Smart Schedule Optimizer for PostForge.
  */
+import { safeGet, safeSet, safeSetRaw, safeGetRaw, safeRemove } from './safeStorage';
 
 const PEAK_WINDOWS = {
   Discord: [
@@ -38,7 +39,7 @@ export function getScheduledPosts() {
   const posts = [];
 
   // From launch schedule
-  const launch = JSON.parse(localStorage.getItem('postforge_launch_schedule') || '[]');
+  const launch = safeGet('postforge_launch_schedule', []);
   for (const item of launch) {
     if (item.status === 'pending') {
       posts.push({
@@ -51,8 +52,8 @@ export function getScheduledPosts() {
   }
 
   // From activated products (daily scheduled)
-  const products = JSON.parse(localStorage.getItem('postforge_products') || '[]');
-  const communities = JSON.parse(localStorage.getItem('postforge_communities') || '[]');
+  const products = safeGet('postforge_products', []);
+  const communities = safeGet('postforge_communities', []);
   const activatedProducts = products.filter(p => p.activated);
   const autoPostCommunities = communities.filter(c => c.autoPost);
 
@@ -77,7 +78,7 @@ export function getScheduledPosts() {
   }
 
   // Manual scheduled posts from postforge_manual_schedule
-  const manual = JSON.parse(localStorage.getItem('postforge_manual_schedule') || '[]');
+  const manual = safeGet('postforge_manual_schedule', []);
   for (const item of manual) {
     posts.push({
       community: item.community,
@@ -119,12 +120,12 @@ export function detectConflicts(posts) {
  * Save a manually scheduled post.
  */
 export function addManualSchedule(community, platform, scheduledAt) {
-  const manual = JSON.parse(localStorage.getItem('postforge_manual_schedule') || '[]');
+  const manual = safeGet('postforge_manual_schedule', []);
   manual.push({ id: Date.now(), community, platform, scheduledAt });
-  localStorage.setItem('postforge_manual_schedule', JSON.stringify(manual));
+  safeSet('postforge_manual_schedule', manual);
 }
 
 export function getTimezone() {
-  const settings = JSON.parse(localStorage.getItem('postforge_settings') || '{}');
+  const settings = safeGet('postforge_settings', {});
   return settings.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
 }

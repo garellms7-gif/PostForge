@@ -1,11 +1,12 @@
 /**
  * Freshness Guard — prevents repetitive content before posting.
  */
+import { safeGet, safeSet, safeGetRaw, safeSetRaw } from './safeStorage';
 
-function getHistory() { return JSON.parse(localStorage.getItem('postforge_history') || '[]'); }
-function getPostLog() { return JSON.parse(localStorage.getItem('postforge_post_log') || '[]'); }
-function getFreshnessLog() { return JSON.parse(localStorage.getItem('postforge_freshness_log') || '[]'); }
-function saveFreshnessLog(log) { localStorage.setItem('postforge_freshness_log', JSON.stringify(log.slice(0, 100))); }
+function getHistory() { return safeGet('postforge_history', []); }
+function getPostLog() { return safeGet('postforge_post_log', []); }
+function getFreshnessLog() { return safeGet('postforge_freshness_log', []); }
+function saveFreshnessLog(log) { safeSet('postforge_freshness_log', log.slice(0, 100)); }
 
 function addFreshnessEntry(entry) {
   const log = getFreshnessLog();
@@ -47,7 +48,7 @@ async function checkDuplicate(content, communityName) {
   }
 
   // Claude API similarity check for top 5 most recent
-  const settings = JSON.parse(localStorage.getItem('postforge_settings') || '{}');
+  const settings = safeGet('postforge_settings', {});
   if (settings.apiKey && settings.apiKey.length > 10) {
     for (const post of recent.slice(0, 5)) {
       try {
@@ -122,7 +123,7 @@ function getFatiguedPhrases(communityName) {
  */
 function autoAddFatiguedToForbidden(communityName, fatiguedPhrases) {
   if (fatiguedPhrases.length === 0) return;
-  const communities = JSON.parse(localStorage.getItem('postforge_communities') || '[]');
+  const communities = safeGet('postforge_communities', []);
   const updated = communities.map(c => {
     if (c.name !== communityName) return c;
     const posting = c.postingSettings || {};
@@ -131,7 +132,7 @@ function autoAddFatiguedToForbidden(communityName, fatiguedPhrases) {
     if (newWords.length === 0) return c;
     return { ...c, postingSettings: { ...posting, forbiddenWords: [...existing, ...newWords.slice(0, 3)] } };
   });
-  localStorage.setItem('postforge_communities', JSON.stringify(updated));
+  safeSet('postforge_communities', updated);
 }
 
 /**

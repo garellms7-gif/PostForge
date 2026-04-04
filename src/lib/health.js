@@ -1,15 +1,17 @@
+import { safeGet, safeSet, safeSetRaw, safeGetRaw, safeRemove } from './safeStorage';
+
 /**
  * Get the last post dates map from localStorage.
  * Shape: { [communityName]: ISO date string }
  */
 export function getLastPostDates() {
-  return JSON.parse(localStorage.getItem('postforge_last_post_dates') || '{}');
+  return safeGet('postforge_last_post_dates', {});
 }
 
 export function setLastPostDate(communityName) {
   const dates = getLastPostDates();
   dates[communityName] = new Date().toISOString();
-  localStorage.setItem('postforge_last_post_dates', JSON.stringify(dates));
+  safeSet('postforge_last_post_dates', dates);
 }
 
 /**

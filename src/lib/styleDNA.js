@@ -1,6 +1,7 @@
 /**
  * Style DNA Extraction and Community Style Profile System.
  */
+import { safeGet, safeSet } from './safeStorage';
 
 const EXTRACTION_PROMPT = `Analyze this post and extract its writing style characteristics. Return ONLY a JSON object:
 {
@@ -19,7 +20,7 @@ const EXTRACTION_PROMPT = `Analyze this post and extract its writing style chara
  * Extract Style DNA from a post via Claude API, with heuristic fallback.
  */
 export async function extractStyleDNA(content) {
-  const settings = JSON.parse(localStorage.getItem('postforge_settings') || '{}');
+  const settings = safeGet('postforge_settings', {});
   const apiKey = settings.apiKey;
 
   if (apiKey && apiKey.length > 10) {
@@ -89,7 +90,7 @@ function heuristicExtract(content) {
  * Get all stored Style DNA entries.
  */
 export function getStyleDNAStore() {
-  return JSON.parse(localStorage.getItem('postforge_style_dna') || '{}');
+  return safeGet('postforge_style_dna', {});
 }
 
 /**
@@ -98,7 +99,7 @@ export function getStyleDNAStore() {
 export function saveStyleDNA(postId, community, dna) {
   const store = getStyleDNAStore();
   store[postId] = { ...dna, community, extractedAt: new Date().toISOString() };
-  localStorage.setItem('postforge_style_dna', JSON.stringify(store));
+  safeSet('postforge_style_dna', store);
 }
 
 /**

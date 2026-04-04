@@ -1,3 +1,5 @@
+import { safeGet, safeSet, safeSetRaw, safeGetRaw, safeRemove } from './safeStorage';
+
 /**
  * Post to Discord via webhook URL.
  * Supports optional username override.
@@ -211,7 +213,7 @@ export async function testRedditConnection(appId, appSecret, username, password)
  * Get Twitter/X usage count for current month.
  */
 function getTwitterUsage() {
-  const data = JSON.parse(localStorage.getItem('postforge_twitter_usage') || '{}');
+  const data = safeGet('postforge_twitter_usage', {});
   const currentMonth = new Date().toISOString().slice(0, 7);
   if (data.month !== currentMonth) return { month: currentMonth, count: 0 };
   return data;
@@ -220,7 +222,7 @@ function getTwitterUsage() {
 function incrementTwitterUsage() {
   const usage = getTwitterUsage();
   usage.count += 1;
-  localStorage.setItem('postforge_twitter_usage', JSON.stringify(usage));
+  safeSet('postforge_twitter_usage', usage);
   return usage;
 }
 

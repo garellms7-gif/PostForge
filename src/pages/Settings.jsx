@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Shield, Key, Clock, Trash2, AlertTriangle, Zap, Check, X, Lock, ShieldCheck, Globe, BarChart2, Download, Upload, Database } from 'lucide-react';
+import { Shield, Key, Clock, Trash2, AlertTriangle, Zap, Check, X, Lock, ShieldCheck, Globe, BarChart2, Download, Upload, Database, HeartPulse } from 'lucide-react';
 import { getSafetySettings, saveSafetySettings } from '../lib/safety';
+import { runHealthCheck, resetKey } from '../lib/safeStorage';
 import { testDiscordWebhook, testLinkedInToken, testRedditConnection, testTwitterConnection, getTwitterUsage } from '../lib/posting';
 
 const DEFAULT_SETTINGS = {
@@ -514,6 +515,79 @@ function DataManagement() {
           Total: {(Object.keys(localStorage).filter(k => k.startsWith('postforge_')).reduce((s, k) => s + (localStorage.getItem(k) || '').length, 0) / 1024).toFixed(1)} KB
         </div>
       </div>
+
+      {/* Health Check */}
+      <HealthCheck />
+    </div>
+  );
+}
+
+function HealthCheck() {
+  const [report, setReport] = useState(null);
+  const [repairing, setRepairing] = useState(false);
+
+  const handleRun = () => { setReport(runHealthCheck()); };
+
+  const handleResetKey = (key) => {
+    resetKey(key);
+    setReport(runHealthCheck());
+  };
+
+  const handleRepairAll = () => {
+    if (!report) return;
+    setRepairing(true);
+    for (const c of report.corrupted) resetKey(c.key);
+    setTimeout(() => { setReport(runHealthCheck()); setRepairing(false); }, 300);
+  };
+
+  return (
+    <div className="card">
+      <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <HeartPulse size={16} /> Data Health Check
+      </div>
+      <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 12 }}>
+        Validate all PostForge data for corruption. Corrupted keys can be reset individually without affecting healthy data.
+      </p>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <button className="btn btn-primary btn-sm" onClick={handleRun}>
+          <HeartPulse size={13} /> Run Health Check
+        </button>
+        {report && report.corrupted.length > 0 && (
+          <button className="btn btn-danger btn-sm" onClick={handleRepairAll} disabled={repairing}>
+            {repairing ? <span className="spinner" /> : <Zap size={13} />}
+            Repair All ({report.corrupted.length})
+          </button>
+        )}
+      </div>
+
+      {report && (
+        <div style={{ marginTop: 12 }}>
+          <div className="hc-summary">
+            <span className="hc-healthy"><Check size={12} /> {report.healthy.length} healthy</span>
+            {report.corrupted.length > 0 ? (
+              <span className="hc-corrupted"><X size={12} /> {report.corrupted.length} corrupted</span>
+            ) : (
+              <span className="hc-healthy"><Check size={12} /> No corruption found</span>
+            )}
+          </div>
+
+          {report.corrupted.length > 0 && (
+            <div className="hc-corrupted-list">
+              {report.corrupted.map(c => (
+                <div key={c.key} className="hc-corrupted-row">
+                  <div>
+                    <div className="dm-storage-key">{c.key.replace('postforge_', '')}</div>
+                    <div style={{ fontSize: 10, color: 'var(--danger)' }}>{c.error}</div>
+                  </div>
+                  <button className="btn btn-danger btn-sm" style={{ padding: '2px 8px', fontSize: 10 }} onClick={() => handleResetKey(c.key)}>
+                    Reset
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

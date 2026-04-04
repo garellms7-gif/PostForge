@@ -2597,6 +2597,69 @@ body {
   white-space: pre-wrap;
 }
 
+/* ===== Safe Storage Error Toast ===== */
+.ss-error-toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--danger);
+  color: white;
+  padding: 12px 24px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  z-index: 9999;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from { transform: translateX(-50%) translateY(20px); opacity: 0; }
+  to { transform: translateX(-50%) translateY(0); opacity: 1; }
+}
+
+/* Health Check */
+.hc-summary {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.hc-healthy {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--success);
+}
+
+.hc-corrupted {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--danger);
+}
+
+.hc-corrupted-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.hc-corrupted-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 10px;
+  background: rgba(239, 68, 68, 0.04);
+  border: 1px solid rgba(239, 68, 68, 0.15);
+  border-radius: 6px;
+}
+
 /* ===== Data Management ===== */
 .dm-reminder {
   display: flex;

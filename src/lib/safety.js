@@ -2,6 +2,7 @@
  * PostForge Posting Safety Engine
  * Prevents bans and spam flags across platforms.
  */
+import { safeGet, safeSet, safeSetRaw, safeGetRaw, safeRemove } from './safeStorage';
 
 const DEFAULT_SAFETY = {
   redditSafeMode: true,
@@ -11,26 +12,25 @@ const DEFAULT_SAFETY = {
 };
 
 export function getSafetySettings() {
-  const data = localStorage.getItem('postforge_safety');
-  return data ? { ...DEFAULT_SAFETY, ...JSON.parse(data) } : { ...DEFAULT_SAFETY };
+  return { ...DEFAULT_SAFETY, ...safeGet('postforge_safety', {}) };
 }
 
 export function saveSafetySettings(settings) {
-  localStorage.setItem('postforge_safety', JSON.stringify(settings));
+  safeSet('postforge_safety', settings);
 }
 
 function getPostHistory() {
-  return JSON.parse(localStorage.getItem('postforge_post_log') || '[]');
+  return safeGet('postforge_post_log', []);
 }
 
 function getSafetyLog() {
-  return JSON.parse(localStorage.getItem('postforge_safety_log') || '[]');
+  return safeGet('postforge_safety_log', []);
 }
 
 function addSafetyLogEntry(entry) {
   const log = getSafetyLog();
   log.unshift({ ...entry, date: new Date().toISOString(), id: Date.now() + Math.random() });
-  localStorage.setItem('postforge_safety_log', JSON.stringify(log.slice(0, 100)));
+  safeSet('postforge_safety_log', log.slice(0, 100));
 }
 
 export { getSafetyLog };
@@ -90,7 +90,7 @@ export function runSafetyChecks(content, community, platform) {
     }
 
     if (platform === 'X') {
-      const usage = JSON.parse(localStorage.getItem('postforge_twitter_usage') || '{}');
+      const usage = safeGet('postforge_twitter_usage', {});
       const currentMonth = new Date().toISOString().slice(0, 7);
       const count = usage.month === currentMonth ? usage.count : 0;
       if (count >= 1500) {

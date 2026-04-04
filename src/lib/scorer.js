@@ -1,3 +1,5 @@
+import { safeGet } from './safeStorage';
+
 /**
  * Score a post using the Claude API.
  * Falls back to heuristic scoring if no API key is configured.
@@ -17,7 +19,7 @@ warnings: Array of specific issues found like "too salesy", "too long", "starts 
 
 export async function scorePost(content, communityName, platform) {
   // Try Claude API first
-  const settings = JSON.parse(localStorage.getItem('postforge_settings') || '{}');
+  const settings = safeGet('postforge_settings', {});
   const apiKey = settings.apiKey;
 
   if (apiKey && apiKey.length > 10) {
