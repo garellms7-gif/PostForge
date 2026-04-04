@@ -4824,6 +4824,133 @@ body {
   justify-content: flex-end;
 }
 
+/* ===== History Stats & Pagination ===== */
+.hs-stats-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+.hs-stat {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 10px;
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.hs-stat-muted {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.hs-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 12px;
+  color: var(--muted);
+}
+
+.hs-search-input {
+  background: none;
+  border: none;
+  outline: none;
+  color: var(--text);
+  font-size: 13px;
+  font-family: inherit;
+  flex: 1;
+}
+
+.hs-search-input::placeholder {
+  color: var(--muted);
+}
+
+.hs-search-clear {
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 2px;
+}
+
+.hs-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 20px;
+  padding: 12px 0;
+}
+
+.hs-page-nums {
+  display: flex;
+  gap: 4px;
+}
+
+.hs-page-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+
+.hs-page-btn:hover {
+  border-color: var(--muted);
+  color: var(--text);
+}
+
+.hs-page-active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
+.hs-jump {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+}
+
+.hs-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 20px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.hs-all-loaded {
+  text-align: center;
+  padding: 16px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
 /* ===== Character Counter ===== */
 .char-counter {
   display: flex;

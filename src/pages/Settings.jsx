@@ -764,6 +764,17 @@ export default function Settings({ navigateTo }) {
           </div>
 
           <div className="card">
+            <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Clock size={16} />History Display</div>
+            <div className="form-group" style={{ maxWidth: 200, marginBottom: 0 }}>
+              <label className="form-label">List mode</label>
+              <select className="form-select" value={settings.historyMode || 'pagination'} onChange={e => update('historyMode', e.target.value)}>
+                <option value="pagination">Pagination (20 per page)</option>
+                <option value="infinite">Infinite Scroll</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="card">
             <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}><BarChart2 size={16} />Engagement Tracker</div>
             <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 12 }}>Get reminded to log engagement data on recent posts.</p>
             <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 12 }}>

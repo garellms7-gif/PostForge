@@ -1,15 +1,17 @@
-import { useState, useEffect } from 'react';
-import { Trash2, Copy, Clock, Star, Sparkles, Recycle, RefreshCw, BarChart2, AlertCircle, Save } from 'lucide-react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { Trash2, Copy, Clock, Star, Sparkles, Recycle, RefreshCw, BarChart2, AlertCircle, Save, Download, Search, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { showUndoToast, showTypeConfirm } from '../components/UndoManager';
 import RepurposeEngine from '../components/RepurposeEngine';
 import { calculateRawScore, calculateEngagementScore, getScoreColor, getScoreLabel } from '../lib/scoring';
 import { maybeExtractStyleDNA } from '../lib/styleDNA';
+import { safeGet, safeSet } from '../lib/safeStorage';
 
-function getTopPosts() { return JSON.parse(localStorage.getItem('postforge_top_posts') || '[]'); }
-function saveTopPosts(posts) { localStorage.setItem('postforge_top_posts', JSON.stringify(posts)); }
-function getEngagement() { return JSON.parse(localStorage.getItem('postforge_engagement') || '{}'); }
-function saveEngagement(data) { localStorage.setItem('postforge_engagement', JSON.stringify(data)); }
-function getPostLog() { return JSON.parse(localStorage.getItem('postforge_post_log') || '[]'); }
+function getTopPosts() { return safeGet('postforge_top_posts', []); }
+function saveTopPosts(posts) { safeSet('postforge_top_posts', posts); }
+function getEngagement() { return safeGet('postforge_engagement', {}); }
+function saveEngagement(data) { safeSet('postforge_engagement', data); }
+function getPostLog() { return safeGet('postforge_post_log', []); }
+function getListMode() { return safeGet('postforge_settings', {}).historyMode || 'pagination'; }
 
 const PLATFORM_METRICS = {
   Discord: [{ key: 'reactions', label: 'Reactions' }, { key: 'replies', label: 'Replies' }],
@@ -17,43 +19,18 @@ const PLATFORM_METRICS = {
   Reddit: [{ key: 'upvotes', label: 'Upvotes' }, { key: 'comments', label: 'Comments' }, { key: 'ratio', label: 'Upvote Ratio %' }],
   X: [{ key: 'likes', label: 'Likes' }, { key: 'retweets', label: 'Retweets' }, { key: 'replies', label: 'Replies' }, { key: 'impressions', label: 'Impressions' }],
 };
-
 const SENTIMENTS = ['Positive', 'Neutral', 'Negative', 'Mixed'];
-
-function getTotalInteractions(eng) {
-  if (!eng) return 0;
-  return Object.entries(eng).filter(([k]) => k !== 'sentiment' && k !== 'notes' && k !== 'ratio').reduce((s, [, v]) => s + (Number(v) || 0), 0);
-}
-
-function getPerformanceLabel(postId, community, engagement) {
-  const all = getEngagement();
-  const communityEngagements = Object.entries(all).filter(([, e]) => e._community === community).map(([, e]) => getTotalInteractions(e));
-  if (communityEngagements.length < 2) return null;
-
-  const sorted = [...communityEngagements].sort((a, b) => b - a);
-  const total = getTotalInteractions(engagement);
-  const avg = communityEngagements.reduce((s, v) => s + v, 0) / communityEngagements.length;
-  const top10Threshold = sorted[Math.max(0, Math.floor(sorted.length * 0.1))] || 0;
-
-  if (total >= top10Threshold && total > 0) return { label: 'Top Post', cls: 'eng-perf-top' };
-  if (total > avg) return { label: 'Good', cls: 'eng-perf-good' };
-  if (total >= avg * 0.5) return { label: 'Average', cls: 'eng-perf-avg' };
-  return { label: 'Low', cls: 'eng-perf-low' };
-}
+const PAGE_SIZE = 20;
 
 function shouldShowReminder() {
-  const settings = JSON.parse(localStorage.getItem('postforge_settings') || '{}');
+  const settings = safeGet('postforge_settings', {});
   if (!settings.engagementReminder) return false;
   const hours = settings.engagementReminderHours || 24;
-  const dismissed = localStorage.getItem('postforge_eng_reminder_dismissed');
-  if (dismissed === new Date().toISOString().split('T')[0]) return false;
-
+  if (localStorage.getItem('postforge_eng_reminder_dismissed') === new Date().toISOString().split('T')[0]) return false;
   const log = getPostLog();
   const cutoff = Date.now() - hours * 3600000;
   const recent = log.filter(l => l.status === 'success' && new Date(l.date).getTime() > cutoff && new Date(l.date).getTime() < Date.now() - 3600000);
-  const engagement = getEngagement();
-  const untracked = recent.filter(l => !engagement[l.id]);
-  return untracked.length > 0 ? untracked.length : false;
+  return recent.filter(l => !getEngagement()[l.id]).length || 0;
 }
 
 function EngagementForm({ post, onSave, onCancel }) {
@@ -61,21 +38,15 @@ function EngagementForm({ post, onSave, onCancel }) {
   const metrics = PLATFORM_METRICS[platform] || PLATFORM_METRICS.Discord;
   const existing = getEngagement()[post.id] || {};
   const [form, setForm] = useState({ ...existing });
-
   const update = (k, v) => setForm(f => ({ ...f, [k]: v }));
-
   const handleSave = () => {
     const data = getEngagement();
     data[post.id] = { ...form, _community: post.community, _platform: platform };
     saveEngagement(data);
-    // Auto-extract Style DNA for high-scoring posts
     const score = calculateEngagementScore(platform, { ...form, _platform: platform }, post.community);
-    if (score >= 70 && post.content) {
-      maybeExtractStyleDNA(post.id, post.content, post.community, score).catch(() => {});
-    }
+    if (score >= 70 && post.content) maybeExtractStyleDNA(post.id, post.content, post.community, score).catch(() => {});
     onSave();
   };
-
   return (
     <div className="eng-form">
       <div className="eng-form-metrics">
@@ -118,9 +89,7 @@ function ScoreGauge({ score, size = 40 }) {
       <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={3}
         strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round"
         style={{ transform: 'rotate(-90deg)', transformOrigin: 'center', transition: 'stroke-dashoffset 0.5s' }} />
-      <text x="50%" y="50%" textAnchor="middle" dy="0.35em" fontSize="11" fontWeight="700" fill={color}>
-        {score}
-      </text>
+      <text x="50%" y="50%" textAnchor="middle" dy="0.35em" fontSize="11" fontWeight="700" fill={color}>{score}</text>
     </svg>
   );
 }
@@ -129,17 +98,13 @@ function EngagementBadge({ postId, community, platform }) {
   const all = getEngagement();
   const eng = all[postId];
   if (!eng) return null;
-
   const raw = calculateRawScore(platform || eng._platform, eng);
   const normalized = calculateEngagementScore(platform || eng._platform, eng, community);
-  const label = getScoreLabel(normalized);
-  const color = getScoreColor(normalized);
-
   return (
     <div className="eng-badge-row">
       <ScoreGauge score={normalized} />
       <div className="eng-badge-info">
-        <span className="eng-score-label" style={{ color }}>{label}</span>
+        <span className="eng-score-label" style={{ color: getScoreColor(normalized) }}>{getScoreLabel(normalized)}</span>
         <span className="eng-raw-score">{raw} raw pts</span>
       </div>
       {eng.sentiment && <span className={`eng-sentiment eng-sent-${eng.sentiment.toLowerCase()}`}>{eng.sentiment}</span>}
@@ -156,14 +121,62 @@ export default function History({ navigateTo, simpleMode }) {
   const [engagementFormId, setEngagementFormId] = useState(null);
   const [engagementVersion, setEngagementVersion] = useState(0);
   const [reminderCount, setReminderCount] = useState(0);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [loadedCount, setLoadedCount] = useState(PAGE_SIZE);
+  const [jumpPage, setJumpPage] = useState('');
+  const listMode = getListMode();
+  const scrollRef = useRef(null);
 
   useEffect(() => {
     const data = localStorage.getItem('postforge_history');
     if (data) setHistory(JSON.parse(data));
     setTopPosts(getTopPosts());
-    const rc = shouldShowReminder();
-    setReminderCount(rc || 0);
+    setReminderCount(shouldShowReminder() || 0);
   }, []);
+
+  // Debounce search by 300ms
+  useEffect(() => {
+    const timer = setTimeout(() => { setDebouncedSearch(searchQuery); setCurrentPage(1); setLoadedCount(PAGE_SIZE); }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Infinite scroll observer
+  const sentinelRef = useRef(null);
+  useEffect(() => {
+    if (listMode !== 'infinite' || tab !== 'all') return;
+    const observer = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting) setLoadedCount(c => c + PAGE_SIZE);
+    }, { threshold: 0.1 });
+    if (sentinelRef.current) observer.observe(sentinelRef.current);
+    return () => observer.disconnect();
+  }, [listMode, tab, debouncedSearch]);
+
+  // Filter items
+  const filteredItems = useMemo(() => {
+    let items = tab === 'top' ? topPosts : history;
+    if (debouncedSearch && tab === 'all') {
+      const q = debouncedSearch.toLowerCase();
+      items = items.filter(i => (i.content || '').toLowerCase().includes(q) || (i.community || '').toLowerCase().includes(q) || (i.postType || '').toLowerCase().includes(q));
+    }
+    return items;
+  }, [history, topPosts, tab, debouncedSearch]);
+
+  // Pagination
+  const totalPages = Math.max(1, Math.ceil(filteredItems.length / PAGE_SIZE));
+  const paginatedItems = listMode === 'infinite'
+    ? filteredItems.slice(0, loadedCount)
+    : filteredItems.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const allLoaded = loadedCount >= filteredItems.length;
+
+  // Stats
+  const now = new Date();
+  const weekStart = new Date(now); weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1); weekStart.setHours(0, 0, 0, 0);
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const thisWeek = history.filter(h => new Date(h.date) >= weekStart).length;
+  const thisMonth = history.filter(h => new Date(h.date) >= monthStart).length;
+  const storageKB = ((localStorage.getItem('postforge_history') || '').length / 1024).toFixed(1);
 
   const handleDelete = (id) => {
     const item = history.find(h => h.id === id);
@@ -173,7 +186,7 @@ export default function History({ navigateTo, simpleMode }) {
     const updatedTop = topPosts.filter(t => t.id !== id);
     setTopPosts(updatedTop); saveTopPosts(updatedTop);
     showUndoToast('Post deleted', () => {
-      const restored = [item, ...history];
+      const restored = [item, ...updated];
       setHistory(restored);
       localStorage.setItem('postforge_history', JSON.stringify(restored));
     });
@@ -183,33 +196,57 @@ export default function History({ navigateTo, simpleMode }) {
     const confirmed = await showTypeConfirm('This will permanently delete all post history. This cannot be undone.');
     if (confirmed) { setHistory([]); localStorage.removeItem('postforge_history'); }
   };
+
+  const handleClearOld = () => {
+    const cutoff = Date.now() - 90 * 86400000;
+    const old = history.filter(h => new Date(h.date).getTime() < cutoff);
+    const kept = history.filter(h => new Date(h.date).getTime() >= cutoff);
+    setHistory(kept);
+    localStorage.setItem('postforge_history', JSON.stringify(kept));
+    showUndoToast(`${old.length} old posts removed`, () => {
+      setHistory(history);
+      localStorage.setItem('postforge_history', JSON.stringify(history));
+    });
+  };
+
+  const handleExportHistory = () => {
+    const blob = new Blob([JSON.stringify(history, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `postforge-history-${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const handleCopy = (content, id) => { navigator.clipboard.writeText(content); setCopiedId(id); setTimeout(() => setCopiedId(null), 2000); };
   const handleToggleStar = (item) => {
     const starred = topPosts.some(t => t.id === item.id);
     const updated = starred ? topPosts.filter(t => t.id !== item.id) : [item, ...topPosts];
     setTopPosts(updated); saveTopPosts(updated);
-    // Extract Style DNA when marking as high performer
-    if (!starred && item.content && item.community) {
-      maybeExtractStyleDNA(item.id, item.content, item.community, 100).catch(() => {});
-    }
+    if (!starred && item.content && item.community) maybeExtractStyleDNA(item.id, item.content, item.community, 100).catch(() => {});
   };
   const handleRemoveFromTop = (id) => { const updated = topPosts.filter(t => t.id !== id); setTopPosts(updated); saveTopPosts(updated); };
   const handleUseAsInspiration = (item) => { if (navigateTo) navigateTo('generator', { communityName: item.community }); };
   const isStarred = (id) => topPosts.some(t => t.id === id);
   const formatDate = (iso) => new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-  const displayItems = tab === 'top' ? topPosts : history;
 
-  const dismissReminder = () => {
-    localStorage.setItem('postforge_eng_reminder_dismissed', new Date().toISOString().split('T')[0]);
-    setReminderCount(0);
+  const dismissReminder = () => { localStorage.setItem('postforge_eng_reminder_dismissed', new Date().toISOString().split('T')[0]); setReminderCount(0); };
+
+  const handleJumpPage = (e) => {
+    e.preventDefault();
+    const p = parseInt(jumpPage);
+    if (p >= 1 && p <= totalPages) { setCurrentPage(p); setJumpPage(''); }
   };
+
+  const startIdx = listMode === 'infinite' ? 1 : (currentPage - 1) * PAGE_SIZE + 1;
+  const endIdx = listMode === 'infinite' ? Math.min(loadedCount, filteredItems.length) : Math.min(currentPage * PAGE_SIZE, filteredItems.length);
 
   return (
     <div>
       <h1 className="page-title">History</h1>
       <p className="page-subtitle">Your previously generated posts.</p>
 
-      {/* Engagement reminder banner */}
       {reminderCount > 0 && (
         <div className="eng-reminder">
           <AlertCircle size={15} />
@@ -218,8 +255,22 @@ export default function History({ navigateTo, simpleMode }) {
         </div>
       )}
 
+      {/* Stats bar */}
+      <div className="hs-stats-bar">
+        <span className="hs-stat">{history.length} total</span>
+        <span className="hs-stat">{thisMonth} this month</span>
+        <span className="hs-stat">{thisWeek} this week</span>
+        <span className="hs-stat hs-stat-muted">{storageKB} KB</span>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
+          <button className="btn btn-secondary btn-sm" onClick={handleExportHistory}><Download size={12} /> Export</button>
+          {history.some(h => new Date(h.date).getTime() < Date.now() - 90 * 86400000) && (
+            <button className="btn btn-secondary btn-sm" onClick={handleClearOld}><Trash2 size={12} /> Clear 90d+</button>
+          )}
+        </div>
+      </div>
+
       <div className="tab-bar">
-        <button className={`tab-btn ${tab === 'all' ? 'tab-active' : ''}`} onClick={() => setTab('all')}>
+        <button className={`tab-btn ${tab === 'all' ? 'tab-active' : ''}`} onClick={() => { setTab('all'); setCurrentPage(1); setLoadedCount(PAGE_SIZE); }}>
           All Posts {history.length > 0 && <span className="tab-count">{history.length}</span>}
         </button>
         <button className={`tab-btn ${tab === 'top' ? 'tab-active' : ''}`} onClick={() => setTab('top')}>
@@ -227,77 +278,124 @@ export default function History({ navigateTo, simpleMode }) {
         </button>
       </div>
 
-      {tab === 'all' && history.length > 0 && (
-        <div style={{ marginBottom: 20 }}>
-          <button className="btn btn-danger" onClick={handleClearAll}><Trash2 size={14} /> Clear All History</button>
+      {/* Search bar */}
+      {tab === 'all' && (
+        <div className="hs-search">
+          <Search size={14} />
+          <input className="hs-search-input" placeholder="Search posts by content, community, or type..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+          {searchQuery && <button className="hs-search-clear" onClick={() => setSearchQuery('')}><X size={12} /></button>}
         </div>
       )}
 
-      {displayItems.length > 0 ? (
-        displayItems.map(item => (
-          <div key={item.id} className={`history-item ${isStarred(item.id) ? 'history-item-starred' : ''}`}>
-            <div className="history-meta">
-              <div className="history-meta-left">
-                {isStarred(item.id) && <Star size={14} fill="var(--accent)" color="var(--accent)" />}
-                {item.platform && <span className={`platform-badge ${item.platform.toLowerCase()}`}>{item.platform}</span>}
-                <span style={{ fontSize: 13, color: 'var(--muted)' }}>{item.community}</span>
-                <span style={{ fontSize: 12, color: 'var(--border)' }}>|</span>
-                <span style={{ fontSize: 13, color: 'var(--muted)' }}>{item.postType} · {item.tone}</span>
-                {item.recycledAt && <span className="recycled-label"><Recycle size={11} /> Recycled from {new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>}
-                {item.repurposedFrom && <span className="rp-badge"><RefreshCw size={10} /> Repurposed from {new Date(item.repurposedFrom).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>}
+      {tab === 'all' && history.length > 0 && (
+        <div style={{ marginBottom: 16, display: 'flex', gap: 8, alignItems: 'center' }}>
+          <button className="btn btn-danger btn-sm" onClick={handleClearAll}><Trash2 size={14} /> Clear All</button>
+          {filteredItems.length > 0 && <span style={{ fontSize: 12, color: 'var(--muted)' }}>Showing {startIdx}–{endIdx} of {filteredItems.length} posts</span>}
+        </div>
+      )}
+
+      {/* Post list */}
+      {paginatedItems.length > 0 ? (
+        <div ref={scrollRef}>
+          {paginatedItems.map(item => (
+            <div key={item.id} className={`history-item ${isStarred(item.id) ? 'history-item-starred' : ''}`}>
+              <div className="history-meta">
+                <div className="history-meta-left">
+                  {isStarred(item.id) && <Star size={14} fill="var(--accent)" color="var(--accent)" />}
+                  {item.platform && <span className={`platform-badge ${item.platform.toLowerCase()}`}>{item.platform}</span>}
+                  <span style={{ fontSize: 13, color: 'var(--muted)' }}>{item.community}</span>
+                  <span style={{ fontSize: 12, color: 'var(--border)' }}>|</span>
+                  <span style={{ fontSize: 13, color: 'var(--muted)' }}>{item.postType} · {item.tone}</span>
+                  {item.recycledAt && <span className="recycled-label"><Recycle size={11} /> Recycled</span>}
+                  {item.repurposedFrom && <span className="rp-badge"><RefreshCw size={10} /> Repurposed</span>}
+                </div>
+                <span className="history-date">{formatDate(item.recycledAt || item.date)}</span>
               </div>
-              <span className="history-date">{formatDate(item.recycledAt || item.date)}</span>
+              {!simpleMode && <EngagementBadge key={engagementVersion} postId={item.id} community={item.community} platform={item.platform} />}
+              <div className="history-preview">{item.content}</div>
+              {engagementFormId === item.id && (
+                <EngagementForm post={item} onSave={() => { setEngagementFormId(null); setEngagementVersion(v => v + 1); }} onCancel={() => setEngagementFormId(null)} />
+              )}
+              <div className="output-actions" style={{ marginTop: 8 }}>
+                <button className="btn btn-secondary btn-sm" onClick={() => handleCopy(item.content, item.id)}>
+                  <Copy size={14} /> {copiedId === item.id ? 'Copied!' : 'Copy'}
+                </button>
+                {tab === 'all' && !simpleMode && (
+                  <button className="btn btn-secondary btn-sm" onClick={() => setEngagementFormId(engagementFormId === item.id ? null : item.id)}>
+                    <BarChart2 size={13} /> {engagementFormId === item.id ? 'Close' : 'Engagement'}
+                  </button>
+                )}
+                {tab === 'all' && (
+                  <button className={`btn btn-sm ${isStarred(item.id) ? 'btn-star-active' : 'btn-secondary'}`} onClick={() => handleToggleStar(item)}>
+                    <Star size={14} />
+                  </button>
+                )}
+                {tab === 'top' && (
+                  <>
+                    <button className="btn btn-primary btn-sm" onClick={() => handleUseAsInspiration(item)}><Sparkles size={14} /> Inspire</button>
+                    <button className="btn btn-danger btn-sm" onClick={() => handleRemoveFromTop(item.id)}><Star size={14} /></button>
+                  </>
+                )}
+                {tab === 'all' && (
+                  <button className="btn btn-secondary btn-sm" onClick={() => setRepurposePost(item)}><RefreshCw size={13} /></button>
+                )}
+                {tab === 'all' && (
+                  <button className="btn btn-danger btn-sm" onClick={() => handleDelete(item.id)}><Trash2 size={14} /></button>
+                )}
+              </div>
             </div>
+          ))}
 
-            {/* Engagement badge */}
-            {!simpleMode && <EngagementBadge key={engagementVersion} postId={item.id} community={item.community} platform={item.platform} />}
-
-            <div className="history-preview">{item.content}</div>
-
-            {/* Engagement form */}
-            {engagementFormId === item.id && (
-              <EngagementForm post={item} onSave={() => { setEngagementFormId(null); setEngagementVersion(v => v + 1); }} onCancel={() => setEngagementFormId(null)} />
-            )}
-
-            <div className="output-actions" style={{ marginTop: 8 }}>
-              <button className="btn btn-secondary btn-sm" onClick={() => handleCopy(item.content, item.id)}>
-                <Copy size={14} /> {copiedId === item.id ? 'Copied!' : 'Copy'}
-              </button>
-              {tab === 'all' && !simpleMode && (
-                <button className="btn btn-secondary btn-sm" onClick={() => setEngagementFormId(engagementFormId === item.id ? null : item.id)}>
-                  <BarChart2 size={13} /> {engagementFormId === item.id ? 'Close' : 'Add Engagement'}
-                </button>
-              )}
-              {tab === 'all' && (
-                <button className={`btn btn-sm ${isStarred(item.id) ? 'btn-star-active' : 'btn-secondary'}`} onClick={() => handleToggleStar(item)}>
-                  <Star size={14} /> {isStarred(item.id) ? 'High Performer' : 'Mark as High Performer'}
-                </button>
-              )}
-              {tab === 'top' && (
-                <>
-                  <button className="btn btn-primary btn-sm" onClick={() => handleUseAsInspiration(item)}><Sparkles size={14} /> Use as Inspiration</button>
-                  <button className="btn btn-danger btn-sm" onClick={() => handleRemoveFromTop(item.id)}><Star size={14} /> Remove</button>
-                </>
-              )}
-              {tab === 'all' && (
-                <button className="btn btn-secondary btn-sm" onClick={() => setRepurposePost(item)}>
-                  <RefreshCw size={13} /> Repurpose
-                </button>
-              )}
-              {tab === 'all' && (
-                <button className="btn btn-danger btn-sm" onClick={() => handleDelete(item.id)}><Trash2 size={14} /></button>
-              )}
+          {/* Infinite scroll sentinel */}
+          {listMode === 'infinite' && tab === 'all' && !allLoaded && (
+            <div ref={sentinelRef} className="hs-loading">
+              <span className="spinner" /> Loading more posts...
             </div>
-          </div>
-        ))
+          )}
+          {listMode === 'infinite' && tab === 'all' && allLoaded && filteredItems.length > PAGE_SIZE && (
+            <div className="hs-all-loaded">All {filteredItems.length} posts loaded</div>
+          )}
+        </div>
       ) : (
         <div className="empty-state">
           <Clock size={48} strokeWidth={1} style={{ opacity: 0.3, marginBottom: 12 }} />
-          {tab === 'top' ? (
-            <><p>No top posts yet.</p><p style={{ marginTop: 8, fontSize: 13 }}>Mark posts as high performers in the All Posts tab to see them here.</p><button className="btn btn-secondary btn-sm" style={{ marginTop: 12 }} onClick={() => setTab('all')}>Go to All Posts</button></>
+          {debouncedSearch ? (
+            <><p>No posts match "{debouncedSearch}"</p><button className="btn btn-secondary btn-sm" style={{ marginTop: 8 }} onClick={() => setSearchQuery('')}>Clear search</button></>
+          ) : tab === 'top' ? (
+            <><p>No top posts yet.</p><button className="btn btn-secondary btn-sm" style={{ marginTop: 12 }} onClick={() => setTab('all')}>Go to All Posts</button></>
           ) : (
-            <><p>No posts saved yet.</p><p style={{ marginTop: 8, fontSize: 13 }}>Generate a post and click "Save to History" to start building your library.</p>{navigateTo && <button className="btn btn-primary btn-sm" style={{ marginTop: 12 }} onClick={() => navigateTo('generator')}>Go to Generator</button>}</>
+            <><p>No posts saved yet.</p>{navigateTo && <button className="btn btn-primary btn-sm" style={{ marginTop: 12 }} onClick={() => navigateTo('generator')}>Go to Generator</button>}</>
           )}
+        </div>
+      )}
+
+      {/* Pagination controls */}
+      {listMode === 'pagination' && filteredItems.length > PAGE_SIZE && tab === 'all' && (
+        <div className="hs-pagination">
+          <button className="btn btn-secondary btn-sm" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>
+            <ChevronLeft size={14} /> Previous
+          </button>
+          <div className="hs-page-nums">
+            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+              let pageNum;
+              if (totalPages <= 5) pageNum = i + 1;
+              else if (currentPage <= 3) pageNum = i + 1;
+              else if (currentPage >= totalPages - 2) pageNum = totalPages - 4 + i;
+              else pageNum = currentPage - 2 + i;
+              return (
+                <button key={pageNum} className={`hs-page-btn ${currentPage === pageNum ? 'hs-page-active' : ''}`} onClick={() => setCurrentPage(pageNum)}>
+                  {pageNum}
+                </button>
+              );
+            })}
+          </div>
+          <button className="btn btn-secondary btn-sm" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>
+            Next <ChevronRight size={14} />
+          </button>
+          <form onSubmit={handleJumpPage} className="hs-jump">
+            <span style={{ fontSize: 11, color: 'var(--muted)' }}>Go to</span>
+            <input className="form-input" style={{ width: 40, padding: '3px 6px', fontSize: 11, textAlign: 'center' }} value={jumpPage} onChange={e => setJumpPage(e.target.value)} />
+          </form>
         </div>
       )}
 
