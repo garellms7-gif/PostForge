@@ -2,6 +2,7 @@
  * Freshness Guard — prevents repetitive content before posting.
  */
 import { safeGet, safeSet, safeGetRaw, safeSetRaw } from './safeStorage';
+import { enqueue } from './apiQueue';
 
 function getHistory() { return safeGet('postforge_history', []); }
 function getPostLog() { return safeGet('postforge_post_log', []); }
@@ -52,11 +53,11 @@ async function checkDuplicate(content, communityName) {
   if (settings.apiKey && settings.apiKey.length > 10) {
     for (const post of recent.slice(0, 5)) {
       try {
-        const res = await fetch('https://api.anthropic.com/v1/messages', {
+        const res = await enqueue(() => fetch('https://api.anthropic.com/v1/messages', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'x-api-key': settings.apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
           body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 10, system: 'On a scale of 0-100 how similar are these two posts in message, structure, and key phrases? Return only a number.', messages: [{ role: 'user', content: `Post A:\n${content.slice(0, 500)}\n\nPost B:\n${(post.content || '').slice(0, 500)}` }] }),
-        });
+        }), 'low');
         if (res.ok) {
           const data = await res.json();
           const score = parseInt((data.content?.[0]?.text || '0').match(/\d+/)?.[0] || '0');

@@ -2597,6 +2597,45 @@ body {
   white-space: pre-wrap;
 }
 
+/* ===== API Queue Indicator ===== */
+.aq-indicator {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+  z-index: 900;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.aq-indicator-warn {
+  color: #eab308;
+  border-color: rgba(234, 179, 8, 0.3);
+}
+
+.aq-retry-toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #eab308;
+  color: #000;
+  padding: 10px 20px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  z-index: 9999;
+  max-width: 500px;
+  text-align: center;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  animation: slideUp 0.3s ease-out;
+}
+
 /* ===== Failure Log & Failed Posts ===== */
 .fl-global-banner {
   display: flex;

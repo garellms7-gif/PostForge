@@ -1,4 +1,5 @@
 import { safeGet } from './safeStorage';
+import { enqueue } from './apiQueue';
 
 /**
  * Score a post using the Claude API.
@@ -18,13 +19,13 @@ tip: One specific improvement suggestion in under 15 words
 warnings: Array of specific issues found like "too salesy", "too long", "starts with I", "uses buzzwords" etc`;
 
 export async function scorePost(content, communityName, platform) {
-  // Try Claude API first
+  // Try Claude API first (queued as low priority - background scoring)
   const settings = safeGet('postforge_settings', {});
   const apiKey = settings.apiKey;
 
   if (apiKey && apiKey.length > 10) {
     try {
-      const res = await fetch('https://api.anthropic.com/v1/messages', {
+      const res = await enqueue(() => fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -38,7 +39,7 @@ export async function scorePost(content, communityName, platform) {
           system: SCORING_SYSTEM_PROMPT,
           messages: [{ role: 'user', content: `Community: ${communityName || 'General'} (${platform || 'unknown platform'})\n\nPost:\n${content}` }],
         }),
-      });
+      }), 'low');
 
       if (res.ok) {
         const data = await res.json();

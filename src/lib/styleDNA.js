@@ -2,6 +2,7 @@
  * Style DNA Extraction and Community Style Profile System.
  */
 import { safeGet, safeSet } from './safeStorage';
+import { enqueue } from './apiQueue';
 
 const EXTRACTION_PROMPT = `Analyze this post and extract its writing style characteristics. Return ONLY a JSON object:
 {
@@ -25,11 +26,11 @@ export async function extractStyleDNA(content) {
 
   if (apiKey && apiKey.length > 10) {
     try {
-      const res = await fetch('https://api.anthropic.com/v1/messages', {
+      const res = await enqueue(() => fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
         body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 400, system: EXTRACTION_PROMPT, messages: [{ role: 'user', content: `Post:\n${content}` }] }),
-      });
+      }), 'low');
       if (res.ok) {
         const data = await res.json();
         const text = data.content?.[0]?.text || '';
