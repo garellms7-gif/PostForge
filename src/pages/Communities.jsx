@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Plus, Trash2, Users, ChevronDown, ChevronUp, Zap, HelpCircle, ExternalLink, AlertTriangle } from 'lucide-react';
 import { getCommunityHealth, daysSinceLastPost } from '../lib/health';
+import { getCredentialHealth } from '../lib/credentialExpiry';
 import { testDiscordWebhook, testLinkedInToken, testRedditConnection, testTwitterConnection, getTwitterUsage } from '../lib/posting';
 import { UndoToast } from '../components/UxHelpers';
 import AdvancedPostingSettings from '../components/AdvancedPostingSettings';
@@ -588,6 +589,13 @@ export default function Communities({ simpleMode }) {
                         if (health === 'fading') return <span className="health-badge health-fading">Fading · {days}d</span>;
                         if (health === 'silent') return <span className="health-badge health-silent">Silent · {days}d</span>;
                         return <span className="health-badge health-none">No posts</span>;
+                      })()}
+                      {(() => {
+                        const credHealth = getCredentialHealth(c);
+                        if (credHealth.status === 'expiring') return <span className="health-badge health-silent">{credHealth.message}</span>;
+                        if (credHealth.status === 'expired') return <span className="health-badge health-silent">{credHealth.message}</span>;
+                        if (credHealth.status === 'warning') return <span className="health-badge health-fading">{credHealth.message}</span>;
+                        return null;
                       })()}
                       <div className="toggle-wrapper" onClick={() => updateCommunity(c.id, { autoPost: !c.autoPost })}>
                         <div className={`toggle ${c.autoPost ? 'toggle-on' : ''}`}>

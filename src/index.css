@@ -4386,6 +4386,44 @@ body {
   align-items: center;
 }
 
+/* ===== Credential Expiry ===== */
+.ce-global-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: rgba(234, 179, 8, 0.08);
+  border: 1px solid rgba(234, 179, 8, 0.25);
+  border-radius: 8px;
+  margin-bottom: 12px;
+  font-size: 13px;
+  color: #eab308;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.ce-global-banner:hover {
+  background: rgba(234, 179, 8, 0.12);
+}
+
+.cred-row-warn {
+  border-color: rgba(234, 179, 8, 0.3) !important;
+}
+
+.ce-usage-mini {
+  width: 50px;
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.ce-usage-mini-bar {
+  height: 100%;
+  border-radius: 2px;
+}
+
 /* ===== Credentials Manager ===== */
 .cred-health-score {
   display: flex;

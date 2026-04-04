@@ -3,6 +3,7 @@ import { Shield, Key, Clock, Trash2, AlertTriangle, Zap, Check, X, Lock, ShieldC
 import { getSafetySettings, saveSafetySettings } from '../lib/safety';
 import { runHealthCheck, resetKey } from '../lib/safeStorage';
 import { testDiscordWebhook, testLinkedInToken, testRedditConnection, testTwitterConnection, getTwitterUsage } from '../lib/posting';
+import { getCredentialHealth, getLastTestResult, recordSuccess, recordTestFailure, needsTest } from '../lib/credentialExpiry';
 
 const DEFAULT_SETTINGS = {
   burnoutEnabled: true,
@@ -74,41 +75,15 @@ function encryptCommunityCredentials(communities, passphrase) {
 }
 
 function getCredentialStatus(community) {
-  const p = community.platform;
-  const c = community.credentials || {};
-  const passphrase = getPassphrase();
-  const val = (k) => {
-    const v = c[k] || '';
-    return passphrase && v.startsWith('ENC:') ? decrypt(v, passphrase) : v;
-  };
-
-  if (p === 'Discord') {
-    if (val('webhookUrl')) return 'connected';
-    return 'missing';
-  }
-  if (p === 'LinkedIn') {
-    if (!val('accessToken')) return 'missing';
-    const expiry = val('tokenExpiry');
-    if (expiry) {
-      const days = Math.ceil((new Date(expiry).getTime() - Date.now()) / 86400000);
-      if (days <= 0) return 'expired';
-      if (days <= 7) return 'expiring';
-    }
-    return 'connected';
-  }
-  if (p === 'Reddit') {
-    if (val('appId') && val('appSecret') && val('username') && val('password')) return 'connected';
-    return 'missing';
-  }
-  if (p === 'X') {
-    if (val('apiKey') && val('apiSecret') && val('accessToken') && val('accessTokenSecret')) {
-      const usage = getTwitterUsage();
-      if (usage.count >= 1200) return 'expiring'; // 80% of 1500
-      return 'connected';
-    }
-    return 'missing';
-  }
-  return 'unknown';
+  const health = getCredentialHealth(community);
+  if (health.status === 'unknown') return 'missing';
+  if (health.status === 'expired') return 'expired';
+  if (health.status === 'expiring') return 'expiring';
+  if (health.status === 'warning') return 'expiring';
+  // Check last test result
+  const lastTest = getLastTestResult(community.platform, community.id);
+  if (lastTest.ok === false) return 'expiring';
+  return 'connected';
 }
 
 function getStatusLabel(status) {
@@ -282,11 +257,20 @@ function CredentialsManager({ navigateTo }) {
               {comms.map(c => {
                 const status = getCredentialStatus(c);
                 const { text, cls } = getStatusLabel(status);
+                const health = getCredentialHealth(c);
                 return (
-                  <div key={c.id} className="cred-platform-row">
+                  <div key={c.id} className={`cred-platform-row ${status === 'expired' || status === 'expiring' ? 'cred-row-warn' : ''}`}>
                     <span style={{ fontSize: 13, fontWeight: 500 }}>{c.name}</span>
+                    <span style={{ fontSize: 11, color: 'var(--muted)', flex: 1 }}>{health.message}</span>
+                    {health.usageInfo && (
+                      <div className="ce-usage-mini">
+                        <div className="ce-usage-mini-bar" style={{ width: `${health.usageInfo.pct}%`, background: health.usageInfo.pct >= 80 ? '#eab308' : 'var(--accent)' }} />
+                      </div>
+                    )}
                     <span className={`cred-status-badge ${cls}`}>{text}</span>
-                    <button className="btn btn-secondary btn-sm" style={{ padding: '3px 10px' }} onClick={() => handleGoToCommunity(c.id)}>Setup</button>
+                    <button className="btn btn-secondary btn-sm" style={{ padding: '3px 10px' }} onClick={() => handleGoToCommunity(c.id)}>
+                      {status === 'expiring' || status === 'expired' ? 'Renew' : 'Setup'}
+                    </button>
                   </div>
                 );
               })}

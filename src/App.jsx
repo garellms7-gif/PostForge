@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Sparkles, Users, Package, Clock, Hammer, Send, BarChart2, Calendar, Settings as SettingsIcon, AlertCircle, X, AlertTriangle, Rocket } from 'lucide-react';
 import { getUnresolvedCount } from './lib/failureLog';
+import { getExpiringCredCount } from './lib/credentialExpiry';
 import { safeGet, safeSetRaw, safeGetRaw } from './lib/safeStorage';
 import Dashboard from './pages/Dashboard';
 import Generator from './pages/Generator';
@@ -70,6 +71,7 @@ export default function App() {
   const [showBurnout, setShowBurnout] = useState(false);
   const [inactiveDays, setInactiveDays] = useState(0);
   const [failureCount, setFailureCount] = useState(0);
+  const [expiringCreds, setExpiringCreds] = useState(0);
   const [simpleMode, setSimpleMode] = useState(getSimpleMode());
   const [showHint, setShowHint] = useState(false);
 
@@ -80,6 +82,7 @@ export default function App() {
 
   useEffect(() => {
     setFailureCount(getUnresolvedCount());
+    setExpiringCreds(getExpiringCredCount());
     if (simpleMode && shouldShowAdvancedHint()) setShowHint(true);
 
     const { burnoutEnabled, burnoutDays } = getBurnoutSettings();
@@ -144,6 +147,12 @@ export default function App() {
           <div className="fl-global-banner" onClick={() => navigateTo('automation')}>
             <AlertTriangle size={15} />
             <span><strong>{failureCount} post{failureCount !== 1 ? 's' : ''}</strong> failed to send — view details in Automation</span>
+          </div>
+        )}
+        {expiringCreds > 0 && (
+          <div className="ce-global-banner" onClick={() => navigateTo('settings')}>
+            <AlertTriangle size={15} />
+            <span><strong>{expiringCreds} platform connection{expiringCreds !== 1 ? 's' : ''}</strong> need{expiringCreds === 1 ? 's' : ''} attention — check Credentials in Settings</span>
           </div>
         )}
         {showBurnout && (
