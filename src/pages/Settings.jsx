@@ -659,6 +659,248 @@ function SafetyConfig() {
   );
 }
 
+function generateCodebaseSummary() {
+  const date = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+
+  const PAGES_INFO = [
+    'Dashboard — Momentum stats, weekly performance chart, platform breakdown, product leaderboard, activity feed, upcoming posts, goal tracker, Performance tab (Hall of Fame, matrix, trends, fatigue, win rates)',
+    'Generator — Post generation with tone/type/community selectors, A/B testing, custom prompt builder, platform preview, character counter, quality scorer, rewrite assistant, voice profile integration, Style DNA context',
+    'Communities — Community CRUD with platform-specific setup (Discord webhook, LinkedIn OAuth, Reddit API, Twitter/X API), health badges, credential expiry, block overrides, advanced posting settings, rankings tab with Style DNA',
+    'Product Hub — Product CRUD with tags/categories/status, My Products library with search/filter/sort, product activation with scheduled posting, per-product analytics, My Voice tab with writing samples and voice analysis',
+    'Automation — 7 sub-tabs: Modes (Instant/Scheduled/Approval/Smart/Launch), Templates (recurring), Campaigns (multi-product with phases + optimizer), Rules (if/then engine), Failed Posts, Post Queue (unified), plus Optimal Timing, Posting Log, Post Recycler, Safety Log, Freshness Report',
+    'Content Calendar — Monthly grid view with platform-colored dots, day detail panel, drag-to-reschedule, Fill Gaps auto-generation, monthly summary',
+    'History — Paginated/infinite scroll post list with search, engagement tracking (platform metrics + scoring gauge), top posts, repurpose engine, stats bar with export, undo delete',
+    'Settings — 6 tabs: General (simple mode, API key, timezone, goals), Posting Safety (4 rule sets), Notifications (6 toggles), Credentials (health dashboard + encryption), Data (export/import/health check), Advanced (prompt/optimizer/freshness/queue/debug/dev tools)',
+  ];
+
+  const FEATURES = [
+    'Post Generation — 6 tones × 6 post types with template engine',
+    'A/B Community Testing — side-by-side comparison with voting and insights',
+    'A/B Prompt Testing — default vs custom prompt comparison',
+    'Custom Prompt Builder — system prompt override, 12 variables, 5 presets, saved templates',
+    'Post Quality Scorer — 5-dimension scoring via Claude API or heuristic (hook/clarity/authenticity/fit/CTA)',
+    'Rewrite Assistant — 8 quick rewrites + custom input, version history with restore',
+    'Platform Preview — Discord/LinkedIn/Reddit/X styled post previews',
+    'Character Counter — color-coded bar (Twitter/Reddit/long-form thresholds)',
+    'Voice/Tone Calibrator — 5 writing samples → Claude API voice analysis → profile card',
+    'Style DNA System — auto-extraction from high performers, community style profiles, generation context',
+    'Community Health — Active/Fading/Silent badges based on last post date',
+    'Credential Expiry Tracking — LinkedIn 60-day token, Reddit success tracking, Twitter usage counter',
+    'Platform API Integration — Discord webhook, LinkedIn UGC, Reddit OAuth, Twitter OAuth 1.0a with test connections',
+    'Posting Safety — Reddit safe mode, spam prevention, rate limiting, content authenticity scoring',
+    'Freshness Guard — duplicate detection, opening line freshness, phrase fatigue, topic rotation',
+    'Engagement Tracking — platform-specific metrics, sentiment, unified 0-100 normalized scoring',
+    'Post Type Rankings — per-community leaderboard with trends, medals, best examples',
+    'Performance Analytics — Hall of Fame, performance matrix, trend lines, fatigue detector, win rates',
+    'Community Rankings — topic distribution chart, fatigued phrases list, "What Works Here" card',
+    'Automation Modes — Instant, Scheduled, Approval Queue, Smart Mode, Launch Mode (staggered)',
+    'Recurring Templates — Daily/Weekly/Monthly/Custom schedules with auto-run and history',
+    'Campaign Manager — multi-product/community campaigns with Smart Phases (Discovery→Optimization→Amplification)',
+    'Campaign Optimizer — AI style extraction, underperformer substitution, side-by-side comparison',
+    'Rules Engine — 6 triggers, 5 actions, 4 preset templates, auto-evaluation timer',
+    'Post Queue — unified queue from all sources, pause/resume, edit/reschedule modals, filters',
+    'Content Calendar — monthly grid, peak engagement windows, conflict detection, click-to-schedule',
+    'Optimal Timing — per-platform peak windows, 7-day calendar, schedule conflict warnings',
+    'Post Recycler — rewrites old posts for freshness, sends to approval queue',
+    'Auto-Repurpose Engine — cross-platform content adaptation via Claude API',
+    'Goal Tracker — 5 goal types with progress rings, heatmap, launch countdown',
+    'Product Analytics — per-product stats, performance timeline, community reach, changelog, export',
+    'Product Library — tags, categories, status, search/filter/sort, archive with deactivation',
+    'Failure Detection — 5 failure categories with fix instructions, retry queue, global banner',
+    'API Queue — Claude API rate limiting with priority, platform rate limiters, retry queue',
+    'Safe Storage — try/catch localStorage wrapper, corruption recovery, storage-full alerts',
+    'Data Backup — full JSON export/import, auto-backup reminders, health check with repair',
+    'Credential Encryption — XOR+base64 with session passphrase',
+    'Simple Mode — hides advanced features for new users, floating hint after 3 days',
+    'Undo System — 5-second undo toasts (max 3 stacked), type-to-confirm for destructive actions',
+    'Burnout Protection — inactivity banner with Generate Check-in shortcut',
+    'Pagination — 20 per page with search, infinite scroll option, debounced filtering',
+  ];
+
+  const keys = Object.keys(localStorage).filter(k => k.startsWith('postforge_')).sort();
+  const KEY_DESCRIPTIONS = {
+    postforge_communities: 'Array of community objects (credentials, block settings, posting settings, platform config)',
+    postforge_products: 'Array of product objects (tags, category, status, schedule, activation state)',
+    postforge_product: 'Currently loaded product in the editor',
+    postforge_blocks: 'Content blocks data (voice samples, update log, roadmap, CTA, story, social proof)',
+    postforge_active_product_id: 'ID of the currently loaded product',
+    postforge_history: 'Array of generated/saved posts with content, community, tone, date',
+    postforge_post_log: 'Array of sent post log entries with status, error, platform',
+    postforge_top_posts: 'Array of user-starred high-performing posts',
+    postforge_engagement: 'Object keyed by post ID with platform metrics and sentiment',
+    postforge_voice: 'Writing samples array + analyzed voice profile object',
+    postforge_style_dna: 'Extracted Style DNA objects keyed by post ID',
+    postforge_settings: 'Global settings (API key, timezone, goals, mode preferences, thresholds)',
+    postforge_safety: 'Safety toggle states (Reddit safe mode, spam, rate limiting, content check)',
+    postforge_safety_log: 'Safety rule trigger log entries',
+    postforge_freshness_log: 'Freshness Guard action log entries',
+    postforge_failures: 'Failed post entries with error details and retry counts',
+    postforge_rules: 'Automation if/then rules with triggers and actions',
+    postforge_rules_log: 'Rule execution log entries',
+    postforge_templates: 'Recurring post templates with schedules and run history',
+    postforge_campaigns: 'Campaign objects with posts, phases, status, settings',
+    postforge_approval_queue: 'Posts pending approval before sending',
+    postforge_launch_schedule: 'Launch Mode scheduled posts with stagger timing',
+    postforge_launch_history: 'Completed launch records with sent/failed counts',
+    postforge_manual_schedule: 'Manually scheduled posts from calendar clicks',
+    postforge_schedule: 'Scheduled Mode time and active state',
+    postforge_smart: 'Smart Mode time and active state',
+    postforge_recycler: 'Recycler enabled/interval settings',
+    postforge_ab_results: 'A/B test voting results history',
+    postforge_custom_prompts: 'User-saved prompt templates',
+    postforge_prompt_config: 'Custom prompt enabled/text/A/B toggle state',
+    postforge_goals: 'Goal tracking data (weekly, coverage, streak, reach, launch tasks)',
+    postforge_twitter_usage: 'Monthly tweet count tracking { month, count }',
+    postforge_last_post_dates: 'Last post date per community name (ISO string)',
+    postforge_cred_tracker: 'Credential test results and Reddit success dates per community',
+    postforge_last_backup: 'Last data export timestamp (ISO string)',
+    postforge_simple_mode: 'Simple/Advanced mode toggle ("true"/"false")',
+    postforge_first_use: 'First app use date for hint timing (ISO string)',
+    postforge_advanced_hint_dismissed: 'Whether "Ready for more?" hint was dismissed',
+    postforge_burnout_dismissed: 'Today\'s date if burnout banner was dismissed',
+    postforge_queue_paused: 'Whether the post queue is paused ("true"/"false")',
+    postforge_settings_tab: 'Last active Settings tab name',
+    postforge_eng_reminder_dismissed: 'Today\'s date if engagement reminder was dismissed',
+  };
+
+  let text = `PostForge Codebase Summary — ${date}\n\n`;
+  text += `Tech: React + Vite, plain CSS, localStorage, lucide-react icons. No external UI libs.\n`;
+  text += `Files: 43 source files (8 pages, 21 components, 14 lib modules)\n\n`;
+
+  text += `PAGES:\n`;
+  PAGES_INFO.forEach(p => { text += `- ${p}\n`; });
+
+  text += `\nFEATURES BUILT:\n`;
+  FEATURES.forEach(f => { text += `- ${f}\n`; });
+
+  text += `\nLOCALSTORAGE KEYS (${keys.length} active):\n`;
+  keys.forEach(k => {
+    const desc = KEY_DESCRIPTIONS[k] || 'Unknown';
+    const size = ((localStorage.getItem(k) || '').length / 1024).toFixed(1);
+    text += `- ${k}: ${desc} [${size} KB]\n`;
+  });
+
+  text += `\nCURRENT KNOWN ISSUES:\n[Add any known bugs or issues here]\n`;
+  text += `\nNEXT PLANNED FEATURES:\n[Add planned features here]\n`;
+
+  return text;
+}
+
+const FEATURE_CHECKLIST = [
+  { category: 'Core Generation', items: [
+    'Template-based post generation (6 tones × 6 types)', 'Community-specific generation', 'Voice profile integration',
+    'Style DNA context injection', 'Top posts as inspiration', 'Content blocks system',
+  ]},
+  { category: 'Post Enhancement', items: [
+    'Post quality scorer (5 dimensions)', 'Rewrite assistant (8 presets + custom)', 'Platform preview (Discord/LinkedIn/Reddit/X)',
+    'Character counter with thresholds', 'A/B community testing', 'A/B prompt testing', 'Custom prompt builder',
+  ]},
+  { category: 'Community Management', items: [
+    'Discord webhook setup + test', 'LinkedIn OAuth setup + test', 'Reddit API setup + test', 'Twitter/X API setup + test',
+    'Community health indicators', 'Credential expiry tracking', 'Block overrides per community',
+    'Advanced posting settings (forbidden words, length, emoji)', 'Post type rankings with trends',
+  ]},
+  { category: 'Automation', items: [
+    'Instant Mode', 'Scheduled Mode', 'Approval Queue', 'Smart Mode', 'Launch Mode (staggered)',
+    'Recurring templates', 'Campaign manager with Smart Phases', 'Campaign optimizer (AI style extraction)',
+    'Rules engine (if/then triggers)', 'Post queue (unified)', 'Post recycler',
+  ]},
+  { category: 'Analytics & Tracking', items: [
+    'Dashboard with 6 stat sections', 'Performance tab (Hall of Fame, matrix, trends, fatigue, win rates)',
+    'Goal tracker (5 goal types)', 'Engagement tracking (platform metrics)', 'Unified scoring engine (0-100)',
+    'Product analytics with export', 'Community rankings', 'Style DNA system',
+  ]},
+  { category: 'Safety & Reliability', items: [
+    'Posting safety engine (4 rule sets)', 'Freshness Guard (duplicate/opening/phrase/topic)',
+    'API queue with rate limiting', 'Platform rate limiters', 'Failure detection (5 categories)',
+    'Safe storage wrapper', 'Data health check', 'Credential encryption',
+  ]},
+  { category: 'UX & Polish', items: [
+    'Simple Mode for new users', 'Undo toast system (5s, max 3)', 'Type-to-confirm for destructive actions',
+    'Burnout protection banner', 'Content calendar (monthly grid)', 'Paginated history with search',
+    'Data backup/restore', 'Dark theme throughout', 'Platform-colored badges',
+  ]},
+];
+
+function DevTools() {
+  const [open, setOpen] = useState(false);
+  const [showSummary, setShowSummary] = useState(false);
+  const [showChecklist, setShowChecklist] = useState(false);
+  const [summaryText, setSummaryText] = useState('');
+  const [copied, setCopied] = useState(false);
+
+  const handleGenerateSummary = () => {
+    setSummaryText(generateCodebaseSummary());
+    setShowSummary(true);
+  };
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(summaryText);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="card">
+      <button className="aps-toggle" onClick={() => setOpen(!open)} style={{ fontSize: 13 }}>
+        {open ? '▾' : '▸'} Developer Tools
+      </button>
+
+      {open && (
+        <div style={{ marginTop: 12 }}>
+          <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 12 }}>
+            Generate summaries for Claude Code sessions or track what's been built.
+          </p>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button className="btn btn-primary btn-sm" onClick={handleGenerateSummary}>Generate Codebase Summary</button>
+            <button className="btn btn-secondary btn-sm" onClick={() => setShowChecklist(!showChecklist)}>
+              {showChecklist ? 'Hide' : "What's Built"}
+            </button>
+          </div>
+
+          {/* What's Built checklist */}
+          {showChecklist && (
+            <div className="dt-checklist">
+              {FEATURE_CHECKLIST.map(cat => (
+                <div key={cat.category} className="dt-cat">
+                  <div className="dt-cat-title">{cat.category}</div>
+                  {cat.items.map(item => (
+                    <div key={item} className="dt-check-row">
+                      <Check size={12} style={{ color: 'var(--success)', flexShrink: 0 }} />
+                      <span>{item}</span>
+                    </div>
+                  ))}
+                </div>
+              ))}
+              <div style={{ marginTop: 10, fontSize: 12, color: 'var(--success)', fontWeight: 600 }}>
+                {FEATURE_CHECKLIST.reduce((s, c) => s + c.items.length, 0)} features built across {FEATURE_CHECKLIST.length} categories
+              </div>
+            </div>
+          )}
+
+          {/* Summary modal */}
+          {showSummary && (
+            <div className="pq-modal-overlay" onClick={() => setShowSummary(false)}>
+              <div className="pq-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 700, maxHeight: '85vh' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                  <span style={{ fontWeight: 700, fontSize: 15 }}>Codebase Summary</span>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button className="btn btn-primary btn-sm" onClick={handleCopy}>
+                      {copied ? <><Check size={12} /> Copied!</> : 'Copy to Clipboard'}
+                    </button>
+                    <button className="pa-close" onClick={() => setShowSummary(false)}><X size={16} /></button>
+                  </div>
+                </div>
+                <pre className="dt-summary-pre">{summaryText}</pre>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Settings({ navigateTo }) {
   const savedTab = localStorage.getItem('postforge_settings_tab') || 'general';
   const [tab, setTab] = useState(savedTab);
@@ -894,6 +1136,9 @@ export default function Settings({ navigateTo }) {
               <span className="toggle-label">{settings.debugMode ? 'Debug On' : 'Debug Off'}</span>
             </div>
           </div>
+
+          {/* Developer Tools */}
+          <DevTools />
         </>
       )}
 
