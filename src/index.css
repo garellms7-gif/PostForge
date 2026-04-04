@@ -2597,6 +2597,131 @@ body {
   white-space: pre-wrap;
 }
 
+/* ===== Failure Log & Failed Posts ===== */
+.fl-global-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-radius: 8px;
+  margin-bottom: 16px;
+  font-size: 13px;
+  color: var(--danger);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.fl-global-banner:hover {
+  background: rgba(239, 68, 68, 0.12);
+}
+
+.fl-toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background: var(--danger);
+  color: white;
+  padding: 12px 20px;
+  border-radius: 10px;
+  font-size: 13px;
+  z-index: 9999;
+  max-width: 400px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  animation: slideUp 0.3s ease-out;
+}
+
+.fl-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.fl-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.fl-card-resolved {
+  opacity: 0.5;
+}
+
+.fl-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-bottom: 2px solid;
+}
+
+.fl-category {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.fl-error-block {
+  padding: 8px 14px;
+  background: var(--bg);
+  margin: 10px 14px 0;
+  border-radius: 6px;
+  overflow-x: auto;
+}
+
+.fl-error-block code {
+  font-size: 11px;
+  color: var(--danger);
+  font-family: ui-monospace, Consolas, monospace;
+  white-space: pre-wrap;
+  word-break: break-all;
+  background: none;
+  padding: 0;
+}
+
+.fl-fix-hint {
+  padding: 8px 14px;
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.fl-post-preview {
+  padding: 0 14px 8px;
+  font-size: 12px;
+  color: var(--text);
+  line-height: 1.4;
+  opacity: 0.7;
+}
+
+.fl-card-meta {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 4px 14px 8px;
+}
+
+.fl-timestamp {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.fl-retry-count {
+  font-size: 10px;
+  font-weight: 600;
+  color: #eab308;
+  background: rgba(234, 179, 8, 0.1);
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.fl-card-actions {
+  display: flex;
+  gap: 6px;
+  padding: 8px 14px 12px;
+}
+
 /* ===== Safe Storage Error Toast ===== */
 .ss-error-toast {
   position: fixed;

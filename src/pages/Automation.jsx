@@ -9,6 +9,8 @@ import PostQueue from '../components/PostQueue';
 import RecurringTemplates from '../components/RecurringTemplates';
 import RulesEngine from '../components/RulesEngine';
 import CampaignManager from '../components/CampaignManager';
+import FailedPosts from '../components/FailedPosts';
+import { getUnresolvedCount } from '../lib/failureLog';
 
 const MODES = [
   { id: 'instant', label: 'Instant Mode', icon: Zap, desc: 'Send now to all enabled communities' },
@@ -452,6 +454,10 @@ export default function Automation() {
             return rLen > 0 ? <span className="tab-count">{rLen}</span> : null;
           })()}
         </button>
+        <button className={`tab-btn ${view === 'failed' ? 'tab-active' : ''}`} onClick={() => setView('failed')}>
+          Failed
+          {(() => { const c = getUnresolvedCount(); return c > 0 ? <span className="tab-count" style={{ background: 'rgba(239,68,68,0.15)', color: 'var(--danger)' }}>{c}</span> : null; })()}
+        </button>
         <button className={`tab-btn ${view === 'queue' ? 'tab-active' : ''}`} onClick={() => setView('queue')}>
           Post Queue
           {(() => {
@@ -462,6 +468,7 @@ export default function Automation() {
       </div>
 
       {view === 'queue' && <PostQueue />}
+      {view === 'failed' && <FailedPosts />}
       {view === 'templates' && <RecurringTemplates />}
       {view === 'rules' && <RulesEngine />}
       {view === 'campaigns' && <CampaignManager />}

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Sparkles, Users, Package, Clock, Hammer, Send, BarChart2, Calendar, Settings as SettingsIcon, AlertCircle, X } from 'lucide-react';
+import { Sparkles, Users, Package, Clock, Hammer, Send, BarChart2, Calendar, Settings as SettingsIcon, AlertCircle, X, AlertTriangle } from 'lucide-react';
+import { getUnresolvedCount } from './lib/failureLog';
 import Dashboard from './pages/Dashboard';
 import Generator from './pages/Generator';
 import Communities from './pages/Communities';
@@ -61,14 +62,16 @@ export default function App() {
   const [navPayload, setNavPayload] = useState(null);
   const [showBurnout, setShowBurnout] = useState(false);
   const [inactiveDays, setInactiveDays] = useState(0);
+  const [failureCount, setFailureCount] = useState(0);
 
   const navigateTo = (pageId, payload) => {
     setNavPayload(payload || null);
     setPage(pageId);
   };
 
-  // Check burnout on mount
+  // Check failures and burnout on mount/page change
   useEffect(() => {
+    setFailureCount(getUnresolvedCount());
     const { burnoutEnabled, burnoutDays } = getBurnoutSettings();
     if (!burnoutEnabled || isDismissedToday()) return;
 
@@ -120,6 +123,12 @@ export default function App() {
         </nav>
       </aside>
       <main className="main-content">
+        {failureCount > 0 && (
+          <div className="fl-global-banner" onClick={() => navigateTo('automation')}>
+            <AlertTriangle size={15} />
+            <span><strong>{failureCount} post{failureCount !== 1 ? 's' : ''}</strong> failed to send — view details in Automation</span>
+          </div>
+        )}
         {showBurnout && (
           <div className="burnout-banner">
             <div className="burnout-banner-content">
