@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Shield, Key, Clock, Trash2, AlertTriangle, Zap, Check, X, Lock, ShieldCheck, Globe, BarChart2, Download, Upload, Database, HeartPulse, Sparkles } from 'lucide-react';
+import { Shield, Key, Clock, Trash2, AlertTriangle, Zap, Check, X, Lock, ShieldCheck, Globe, BarChart2, Download, Upload, Database, HeartPulse, Sparkles, Bell, Settings as SettingsIcon, Sliders } from 'lucide-react';
 import { getSafetySettings, saveSafetySettings } from '../lib/safety';
 import { runHealthCheck, resetKey } from '../lib/safeStorage';
 import { showTypeConfirm } from '../components/UndoManager';
@@ -660,14 +660,15 @@ function SafetyConfig() {
 }
 
 export default function Settings({ navigateTo }) {
-  const [tab, setTab] = useState('general');
+  const savedTab = localStorage.getItem('postforge_settings_tab') || 'general';
+  const [tab, setTab] = useState(savedTab);
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [saved, setSaved] = useState(false);
   const [cleared, setCleared] = useState(false);
 
-  useEffect(() => {
-    setSettings(getSettings());
-  }, []);
+  useEffect(() => { setSettings(getSettings()); }, []);
+
+  const changeTab = (t) => { setTab(t); localStorage.setItem('postforge_settings_tab', t); };
 
   const update = (key, value) => {
     const updated = { ...settings, [key]: value };
@@ -680,71 +681,47 @@ export default function Settings({ navigateTo }) {
   const handleClearAll = async () => {
     const confirmed = await showTypeConfirm('This will permanently delete ALL PostForge data including products, communities, history, and settings. This cannot be undone.');
     if (!confirmed) return;
-    const keys = Object.keys(localStorage).filter(k => k.startsWith('postforge_'));
-    keys.forEach(k => localStorage.removeItem(k));
-    setCleared(true);
-    setSettings(DEFAULT_SETTINGS);
+    Object.keys(localStorage).filter(k => k.startsWith('postforge_')).forEach(k => localStorage.removeItem(k));
+    setCleared(true); setSettings(DEFAULT_SETTINGS);
     setTimeout(() => setCleared(false), 3000);
   };
+
+  const TABS = [
+    { id: 'general', label: 'General', icon: SettingsIcon },
+    { id: 'safety', label: 'Posting Safety', icon: ShieldCheck },
+    { id: 'notifications', label: 'Notifications', icon: Bell },
+    { id: 'credentials', label: 'Credentials', icon: Key },
+    { id: 'data', label: 'Data', icon: Database },
+    { id: 'advanced', label: 'Advanced', icon: Sliders },
+  ];
 
   return (
     <div>
       <h1 className="page-title">Settings</h1>
       <p className="page-subtitle">Configure PostForge preferences, credentials, and defaults.</p>
 
-      <div className="tab-bar">
-        <button className={`tab-btn ${tab === 'general' ? 'tab-active' : ''}`} onClick={() => setTab('general')}>General</button>
-        <button className={`tab-btn ${tab === 'credentials' ? 'tab-active' : ''}`} onClick={() => setTab('credentials')}>
-          <Key size={14} /> Credentials
-        </button>
-        <button className={`tab-btn ${tab === 'safety' ? 'tab-active' : ''}`} onClick={() => setTab('safety')}>
-          <ShieldCheck size={14} /> Posting Safety
-        </button>
-        <button className={`tab-btn ${tab === 'data' ? 'tab-active' : ''}`} onClick={() => setTab('data')}>
-          <Database size={14} /> Data Management
-        </button>
+      <div className="tab-bar" style={{ flexWrap: 'wrap' }}>
+        {TABS.map(t => (
+          <button key={t.id} className={`tab-btn ${tab === t.id ? 'tab-active' : ''}`} onClick={() => changeTab(t.id)}>
+            <t.icon size={13} /> {t.label}
+          </button>
+        ))}
       </div>
 
+      {/* ===== Tab 1: General ===== */}
       {tab === 'general' && (
         <>
-          {/* Simple Mode banner */}
           <div className={`sm-banner ${localStorage.getItem('postforge_simple_mode') === 'false' ? 'sm-banner-advanced' : 'sm-banner-simple'}`}>
             {localStorage.getItem('postforge_simple_mode') === 'false' ? 'Advanced Mode — all features enabled' : 'Simple Mode is on — showing essential features only'}
           </div>
 
-          {/* Simple Mode toggle */}
           <div className="card">
             <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Sparkles size={16} />Interface Mode</div>
-            <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 12 }}>
-              Simple Mode hides advanced features for a cleaner experience. Turn it off to unlock all features.
-            </p>
-            <div className="toggle-wrapper" onClick={() => {
-              const current = localStorage.getItem('postforge_simple_mode');
-              const next = current === 'false' ? 'true' : 'false';
-              localStorage.setItem('postforge_simple_mode', next);
-              // Force re-render in App
-              window.dispatchEvent(new Event('storage'));
-            }} style={{ marginLeft: 0 }}>
+            <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 12 }}>Simple Mode hides advanced features. Turn it off to unlock everything.</p>
+            <div className="toggle-wrapper" onClick={() => { const next = localStorage.getItem('postforge_simple_mode') === 'false' ? 'true' : 'false'; localStorage.setItem('postforge_simple_mode', next); window.dispatchEvent(new Event('storage')); }} style={{ marginLeft: 0 }}>
               <div className={`toggle ${localStorage.getItem('postforge_simple_mode') !== 'false' ? 'toggle-on' : ''}`}><div className="toggle-knob" /></div>
               <span className="toggle-label">{localStorage.getItem('postforge_simple_mode') !== 'false' ? 'Simple Mode' : 'Advanced Mode'}</span>
             </div>
-          </div>
-
-          <div className="card">
-            <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Shield size={16} />Burnout Protection</div>
-            <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 16 }}>Get reminded when you haven't posted in a while.</p>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
-              <div className="toggle-wrapper" onClick={() => update('burnoutEnabled', !settings.burnoutEnabled)} style={{ marginLeft: 0 }}>
-                <div className={`toggle ${settings.burnoutEnabled ? 'toggle-on' : ''}`}><div className="toggle-knob" /></div>
-                <span className="toggle-label">{settings.burnoutEnabled ? 'Enabled' : 'Disabled'}</span>
-              </div>
-            </div>
-            {settings.burnoutEnabled && (
-              <div className="form-group" style={{ maxWidth: 300 }}>
-                <label className="form-label">Alert after days of inactivity</label>
-                <input className="form-input" type="number" min="1" max="90" value={settings.burnoutDays} onChange={e => update('burnoutDays', Math.max(1, parseInt(e.target.value) || 7))} />
-              </div>
-            )}
           </div>
 
           <div className="card">
@@ -755,74 +732,172 @@ export default function Settings({ navigateTo }) {
             </div>
           </div>
 
-          <div className="card">
-            <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Clock size={16} />Default Post Time</div>
-            <div className="form-group" style={{ maxWidth: 200 }}>
-              <label className="form-label">Default Time</label>
-              <input className="form-input" type="time" value={settings.defaultPostTime} onChange={e => update('defaultPostTime', e.target.value)} />
+          <div className="form-grid" style={{ gap: 16, marginBottom: 20 }}>
+            <div className="card" style={{ marginBottom: 0 }}>
+              <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Clock size={16} />Default Post Time</div>
+              <input className="form-input" type="time" value={settings.defaultPostTime} onChange={e => update('defaultPostTime', e.target.value)} style={{ maxWidth: 150 }} />
             </div>
-          </div>
-
-          <div className="card">
-            <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Clock size={16} />History Display</div>
-            <div className="form-group" style={{ maxWidth: 200, marginBottom: 0 }}>
-              <label className="form-label">List mode</label>
-              <select className="form-select" value={settings.historyMode || 'pagination'} onChange={e => update('historyMode', e.target.value)}>
-                <option value="pagination">Pagination (20 per page)</option>
-                <option value="infinite">Infinite Scroll</option>
+            <div className="card" style={{ marginBottom: 0 }}>
+              <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}><BarChart2 size={16} />Daily Post Goal</div>
+              <select className="form-select" value={settings.dailyGoal || 1} onChange={e => update('dailyGoal', Number(e.target.value))} style={{ maxWidth: 100 }}>
+                {[1, 2, 3, 5, 10].map(n => <option key={n} value={n}>{n} post{n > 1 ? 's' : ''}/day</option>)}
               </select>
             </div>
           </div>
 
           <div className="card">
-            <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}><BarChart2 size={16} />Engagement Tracker</div>
-            <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 12 }}>Get reminded to log engagement data on recent posts.</p>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 12 }}>
-              <div className="toggle-wrapper" onClick={() => update('engagementReminder', !settings.engagementReminder)} style={{ marginLeft: 0 }}>
-                <div className={`toggle ${settings.engagementReminder ? 'toggle-on' : ''}`}><div className="toggle-knob" /></div>
-                <span className="toggle-label">{settings.engagementReminder ? 'Enabled' : 'Disabled'}</span>
+            <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Globe size={16} />Timezone</div>
+            <div className="form-group" style={{ maxWidth: 300 }}>
+              <select className="form-select" value={settings.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone} onChange={e => update('timezone', e.target.value)}>
+                {Intl.supportedValuesOf('timeZone').map(tz => <option key={tz} value={tz}>{tz.replace(/_/g, ' ')}</option>)}
+              </select>
+            </div>
+          </div>
+
+          <div className="card">
+            <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Clock size={16} />History Display</div>
+            <select className="form-select" value={settings.historyMode || 'pagination'} onChange={e => update('historyMode', e.target.value)} style={{ maxWidth: 250 }}>
+              <option value="pagination">Pagination (20 per page)</option>
+              <option value="infinite">Infinite Scroll</option>
+            </select>
+          </div>
+
+          <div className="card" style={{ opacity: 0.5 }}>
+            <div className="card-title">Theme</div>
+            <p style={{ fontSize: 13, color: 'var(--muted)' }}>Dark theme active. Light theme coming soon.</p>
+          </div>
+        </>
+      )}
+
+      {/* ===== Tab 2: Posting Safety ===== */}
+      {tab === 'safety' && <SafetyConfig />}
+
+      {/* ===== Tab 3: Notifications ===== */}
+      {tab === 'notifications' && (
+        <>
+          <div className="card">
+            <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Shield size={16} />Burnout Protection</div>
+            <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 12 }}>Get reminded when you haven't posted in a while.</p>
+            <div className="toggle-wrapper" onClick={() => update('burnoutEnabled', !settings.burnoutEnabled)} style={{ marginLeft: 0, marginBottom: 12 }}>
+              <div className={`toggle ${settings.burnoutEnabled ? 'toggle-on' : ''}`}><div className="toggle-knob" /></div>
+              <span className="toggle-label">{settings.burnoutEnabled ? 'Enabled' : 'Disabled'}</span>
+            </div>
+            {settings.burnoutEnabled && (
+              <div className="form-group" style={{ maxWidth: 200 }}>
+                <label className="form-label">Alert after days of inactivity</label>
+                <input className="form-input" type="number" min="1" max="90" value={settings.burnoutDays} onChange={e => update('burnoutDays', Math.max(1, parseInt(e.target.value) || 7))} />
               </div>
+            )}
+          </div>
+
+          <div className="card">
+            <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}><BarChart2 size={16} />Engagement Reminders</div>
+            <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 12 }}>Get reminded to log engagement on recent posts.</p>
+            <div className="toggle-wrapper" onClick={() => update('engagementReminder', !settings.engagementReminder)} style={{ marginLeft: 0, marginBottom: 12 }}>
+              <div className={`toggle ${settings.engagementReminder ? 'toggle-on' : ''}`}><div className="toggle-knob" /></div>
+              <span className="toggle-label">{settings.engagementReminder ? 'Enabled' : 'Disabled'}</span>
             </div>
             {settings.engagementReminder && (
               <div className="form-group" style={{ maxWidth: 200 }}>
-                <label className="form-label">Remind after X hours</label>
+                <label className="form-label">Remind after hours</label>
                 <input className="form-input" type="number" min="1" max="72" value={settings.engagementReminderHours || 24} onChange={e => update('engagementReminderHours', Number(e.target.value) || 24)} />
               </div>
             )}
           </div>
 
           <div className="card">
-            <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Globe size={16} />Timezone</div>
-            <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 12 }}>All scheduled times and the calendar display in this timezone.</p>
-            <div className="form-group" style={{ maxWidth: 300 }}>
-              <label className="form-label">Your Timezone</label>
-              <select className="form-select" value={settings.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone} onChange={e => update('timezone', e.target.value)}>
-                {Intl.supportedValuesOf('timeZone').map(tz => (
-                  <option key={tz} value={tz}>{tz.replace(/_/g, ' ')}</option>
-                ))}
-              </select>
+            <div className="card-title">Other Notifications</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {[
+                { key: 'weeklyBanner', label: 'Weekly summary banner on Mondays' },
+                { key: 'expiryWarnings', label: 'Credential expiry warnings' },
+                { key: 'failedAlerts', label: 'Failed post alerts' },
+                { key: 'streakReminders', label: 'Streak reminders when close to breaking' },
+              ].map(n => (
+                <div key={n.key} className="toggle-wrapper" onClick={() => update(n.key, settings[n.key] === false ? true : settings[n.key] === undefined ? false : !settings[n.key])} style={{ marginLeft: 0 }}>
+                  <div className={`toggle ${settings[n.key] !== false ? 'toggle-on' : ''}`}><div className="toggle-knob" /></div>
+                  <span className="toggle-label">{n.label}</span>
+                </div>
+              ))}
             </div>
           </div>
+        </>
+      )}
+
+      {/* ===== Tab 4: Credentials ===== */}
+      {tab === 'credentials' && <CredentialsManager navigateTo={navigateTo} />}
+
+      {/* ===== Tab 5: Data Management ===== */}
+      {tab === 'data' && (
+        <>
+          <DataManagement />
 
           <div className="card">
             <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--danger)' }}><Trash2 size={16} />Clear All Data</div>
             <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 16 }}>Permanently delete all PostForge data.</p>
             {!cleared ? (
-              <button className="btn btn-danger" onClick={handleClearAll}>
-                <Trash2 size={14} /> Clear All Data
-              </button>
+              <button className="btn btn-danger" onClick={handleClearAll}><Trash2 size={14} /> Clear All Data</button>
             ) : <p style={{ fontSize: 13, color: 'var(--success)', fontWeight: 500 }}>All data cleared.</p>}
           </div>
         </>
       )}
 
-      {tab === 'credentials' && <CredentialsManager navigateTo={navigateTo} />}
+      {/* ===== Tab 6: Advanced ===== */}
+      {tab === 'advanced' && (
+        <>
+          <div className="card">
+            <div className="card-title">Default System Prompt</div>
+            <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 12 }}>Customize the default prompt used when generating posts. Override per-community in the Generator's Prompt Builder.</p>
+            <textarea className="form-textarea" style={{ minHeight: 100, fontFamily: 'ui-monospace, Consolas, monospace', fontSize: 12 }} value={settings.defaultSystemPrompt || ''} onChange={e => update('defaultSystemPrompt', e.target.value)} placeholder="Leave empty to use the built-in default..." />
+          </div>
 
-      {tab === 'safety' && <SafetyConfig />}
+          <div className="card">
+            <div className="card-title">Optimizer Sensitivity</div>
+            <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 12 }}>How aggressively the campaign optimizer replaces underperforming posts. Lower = more conservative.</p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <input type="range" min="30" max="90" value={settings.optimizerThreshold || 70} onChange={e => update('optimizerThreshold', Number(e.target.value))} className="goal-slider" style={{ flex: 1, maxWidth: 200 }} />
+              <span style={{ fontSize: 13, fontWeight: 600 }}>{settings.optimizerThreshold || 70}%</span>
+            </div>
+            <span style={{ fontSize: 11, color: 'var(--muted)' }}>Posts below this % of community average get flagged</span>
+          </div>
 
-      {tab === 'data' && <DataManagement />}
+          <div className="card">
+            <div className="card-title">Freshness Guard</div>
+            <div className="form-grid" style={{ gap: 12 }}>
+              <div className="form-group">
+                <label className="form-label">Similarity threshold (%)</label>
+                <input className="form-input" type="number" min="50" max="95" value={settings.freshnessThreshold || 70} onChange={e => update('freshnessThreshold', Number(e.target.value))} />
+                <span style={{ fontSize: 11, color: 'var(--muted)' }}>Block posts above this % similar</span>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Phrase fatigue count</label>
+                <input className="form-input" type="number" min="2" max="10" value={settings.phraseFatigueThreshold || 3} onChange={e => update('phraseFatigueThreshold', Number(e.target.value))} />
+                <span style={{ fontSize: 11, color: 'var(--muted)' }}>Flag phrases used more than X times</span>
+              </div>
+            </div>
+          </div>
 
-      {saved && <div style={{ position: 'fixed', bottom: 20, right: 20, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 16px', fontSize: 13, color: 'var(--success)', fontWeight: 500 }}>Settings saved</div>}
+          <div className="card">
+            <div className="card-title">API Queue Speed</div>
+            <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 12 }}>Gap between Claude API calls. Lower = faster but may hit rate limits.</p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <input type="range" min="1" max="5" step="0.5" value={settings.apiQueueGap || 2} onChange={e => update('apiQueueGap', Number(e.target.value))} className="goal-slider" style={{ flex: 1, maxWidth: 200 }} />
+              <span style={{ fontSize: 13, fontWeight: 600 }}>{settings.apiQueueGap || 2}s</span>
+            </div>
+          </div>
+
+          <div className="card">
+            <div className="card-title">Debug Mode</div>
+            <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 12 }}>Show raw API prompts and responses in a debug panel when generating posts.</p>
+            <div className="toggle-wrapper" onClick={() => update('debugMode', !settings.debugMode)} style={{ marginLeft: 0 }}>
+              <div className={`toggle ${settings.debugMode ? 'toggle-on' : ''}`}><div className="toggle-knob" /></div>
+              <span className="toggle-label">{settings.debugMode ? 'Debug On' : 'Debug Off'}</span>
+            </div>
+          </div>
+        </>
+      )}
+
+      {saved && <div style={{ position: 'fixed', bottom: 20, right: 20, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 16px', fontSize: 13, color: 'var(--success)', fontWeight: 500, zIndex: 900 }}>Settings saved</div>}
     </div>
   );
 }
