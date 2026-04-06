@@ -1,3 +1,4 @@
+// PostForge v1.0
 import { useState } from 'react';
 import { Zap, Users, Box, Clock, Settings as SettingsIcon } from 'lucide-react';
 import Generator from './pages/Generator';
