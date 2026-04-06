@@ -18,13 +18,9 @@ export default function ProductHub() {
   const [tab, setTab] = useState('product');
 
   // Product form
-  const [form, setForm] = useState(EMPTY_PRODUCT);
+  const [form, setForm] = useState(() => ({ ...EMPTY_PRODUCT, ...(product || {}) }));
   const [productSaved, setProductSaved] = useState(false);
   const [nameError, setNameError] = useState(false);
-
-  useEffect(() => {
-    setForm({ ...EMPTY_PRODUCT, ...(product || {}) });
-  }, [product]);
 
   const handleField = (key, value) => {
     setForm(prev => ({ ...prev, [key]: value }));
