@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Package, Mic, Plus, Trash2, Save } from 'lucide-react';
+import { Package, Mic, Plus, Trash2, Save, X } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
 const EMPTY_PRODUCT = {
@@ -10,6 +10,21 @@ const EMPTY_PRODUCT = {
   gumroadLink: '',
   version: '',
 };
+
+const PRODUCTS_KEY = 'postforge_products';
+
+function loadProducts() {
+  try {
+    const raw = localStorage.getItem(PRODUCTS_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch { return []; }
+}
+
+function saveProducts(products) {
+  try { localStorage.setItem(PRODUCTS_KEY, JSON.stringify(products)); } catch {}
+}
 
 const MAX_SAMPLES = 5;
 
@@ -22,6 +37,10 @@ export default function ProductHub() {
   const [productSaved, setProductSaved] = useState(false);
   const [nameError, setNameError] = useState(false);
 
+  // Product library
+  const [products, setProductsState] = useState(loadProducts);
+  const [activeId, setActiveId] = useState(null);
+
   const handleField = (key, value) => {
     setForm(prev => ({ ...prev, [key]: value }));
     if (key === 'name' && value.trim()) setNameError(false);
@@ -33,8 +52,42 @@ export default function ProductHub() {
       return;
     }
     setProduct({ ...form });
+    // Also update the library entry if one is active
+    if (activeId) {
+      const updated = products.map(p => p.id === activeId ? { ...form, id: activeId } : p);
+      setProductsState(updated);
+      saveProducts(updated);
+    }
     setProductSaved(true);
     setTimeout(() => setProductSaved(false), 2000);
+  };
+
+  const handleSaveAsNew = () => {
+    if (!form.name.trim()) {
+      setNameError(true);
+      return;
+    }
+    const newProduct = { ...form, id: Date.now().toString() };
+    const updated = [...products, newProduct];
+    setProductsState(updated);
+    saveProducts(updated);
+    setActiveId(newProduct.id);
+    setProduct({ ...form });
+    setProductSaved(true);
+    setTimeout(() => setProductSaved(false), 2000);
+  };
+
+  const handleLoadProduct = (p) => {
+    const { id, ...fields } = p;
+    setForm({ ...EMPTY_PRODUCT, ...fields });
+    setActiveId(id);
+  };
+
+  const handleDeleteProduct = (id) => {
+    const updated = products.filter(p => p.id !== id);
+    setProductsState(updated);
+    saveProducts(updated);
+    if (activeId === id) setActiveId(null);
   };
 
   // Voice samples
@@ -98,6 +151,52 @@ export default function ProductHub() {
       {tab === 'product' && (
         <div className="card">
           <div className="form-grid" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {/* Product switcher */}
+            {products.length > 0 && (
+              <div style={{ marginBottom: 4 }}>
+                <label className="form-label" style={{ marginBottom: 8, display: 'block' }}>My Products</label>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {products.map(p => (
+                    <span
+                      key={p.id}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 4,
+                        padding: '5px 12px',
+                        borderRadius: 999,
+                        fontSize: 12,
+                        fontWeight: 500,
+                        cursor: 'pointer',
+                        border: '1px solid',
+                        borderColor: activeId === p.id ? '#6366f1' : 'var(--border)',
+                        background: activeId === p.id ? '#6366f1' : 'var(--bg)',
+                        color: activeId === p.id ? '#fff' : 'var(--text)',
+                        transition: 'all 0.15s',
+                      }}
+                      onClick={() => handleLoadProduct(p)}
+                    >
+                      {p.name}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleDeleteProduct(p.id); }}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          padding: 0,
+                          marginLeft: 2,
+                          cursor: 'pointer',
+                          color: activeId === p.id ? 'rgba(255,255,255,0.7)' : 'var(--muted)',
+                          display: 'flex',
+                        }}
+                      >
+                        <X size={12} />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="form-group">
               <label className="form-label">
                 Product Name <span style={{ color: '#ef4444' }}>*</span>
@@ -173,6 +272,9 @@ export default function ProductHub() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 8 }}>
               <button className="btn btn-primary" onClick={handleSaveProduct}>
                 <Save size={16} /> Save
+              </button>
+              <button className="btn btn-secondary" onClick={handleSaveAsNew}>
+                <Plus size={16} /> Save as New Product
               </button>
               {productSaved && <span style={savedStyle}>Saved!</span>}
             </div>
